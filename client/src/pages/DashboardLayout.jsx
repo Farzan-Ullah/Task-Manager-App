@@ -11,7 +11,7 @@ const DashboardLayout = () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   useEffect(() => {
-    const token = Cookies.get("token");
+    const token = localStorage.getItem("token") || Cookies.get("token");
     if (!token) {
       navigate("/login");
     }
