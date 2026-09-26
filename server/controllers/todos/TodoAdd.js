@@ -42,6 +42,7 @@ const addTodo = async (req, res) => {
         completed: task.completed,
       })),
       user: userId,
+      workspace: req.user.workspaceId,
       assignee: assignee ? assignee._id : null,
     });
     await newTodo.save();

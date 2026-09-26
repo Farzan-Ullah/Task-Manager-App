@@ -6,11 +6,11 @@ const getAllTodos = async (req, res) => {
     const userId = req.user.userId;
     const role = req.user.role;
 
-    let query = {};
+    let query = { workspace: req.user.workspaceId };
     if (role === "Admin") {
-      query = {}; // Admin sees all
+      // Admin sees all in workspace
     } else {
-      query = { $or: [{ user: userId }, { assignee: userId }] }; // Employee sees created or assigned
+      query.$or = [{ user: userId }, { assignee: userId }]; // Employee sees created or assigned in workspace
     }
 
     const todos = await Todos.find(query).populate(

@@ -5,7 +5,8 @@ const doneLabel = async (req, res) => {
     const userId = req.user.userId;
     const label = req.params.label;
     const filteredTodos = await Todos.find({
-      user: userId,
+      workspace: req.user.workspaceId,
+      $or: [{ user: userId }, { assignee: userId }],
       label: label,
     });
     res.status(200).json({

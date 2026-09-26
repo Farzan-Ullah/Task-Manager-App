@@ -1,10 +1,13 @@
 const User = require("../models/user");
+const Workspace = require("../models/workspace");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const mongoose = require("mongoose");
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, inviteCode } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ errorMessage: "Bad Request!" });
@@ -18,14 +21,42 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    
+    let workspaceId;
+    let role = "Employee";
+
+    if (inviteCode) {
+      const workspace = await Workspace.findOne({ inviteCode });
+      if (!workspace) {
+        return res.status(400).json({ errorMessage: "Invalid invite code!" });
+      }
+      workspaceId = workspace._id;
+    } else {
+      // Create new workspace
+      const newInviteCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+      const workspace = new Workspace({
+        name: `${name}'s Workspace`,
+        inviteCode: newInviteCode,
+        owner: new mongoose.Types.ObjectId(), // Placeholder, updated below
+      });
+      await workspace.save();
+      workspaceId = workspace._id;
+      role = "Admin";
+    }
 
     const userData = new User({
       name,
       email,
       password: hashedPassword,
-      role: role || "Employee",
+      role,
+      workspace: workspaceId,
     });
+    
     await userData.save();
+    
+    if (!inviteCode) {
+      await Workspace.findByIdAndUpdate(workspaceId, { owner: userData._id });
+    }
 
     res.json({ success: true, message: "User registered successfully" });
   } catch (error) {
@@ -60,6 +91,7 @@ const loginUser = async (req, res) => {
         userId: userData._id,
         email: userData.email,
         role: userData.role,
+        workspaceId: userData.workspace,
       },
       process.env.SECRET_KEY,
       { expiresIn: "60h" }
@@ -79,6 +111,7 @@ const loginUser = async (req, res) => {
       email: userData.email,
       userId: userData._id,
       role: userData.role,
+      workspaceId: userData.workspace,
     });
   } catch (error) {
     console.log(error);
@@ -176,6 +209,10 @@ const addAssigneeByEmail = async (req, res) => {
       return res.json({ success: false, message: "Assignee not found" });
     }
 
+    if (assignee.workspace.toString() !== user.workspace.toString()) {
+      return res.json({ success: false, message: "User is not in your workspace" });
+    }
+
     if (user.assignees.includes(assignee._id)) {
       return res
         .status(200)
@@ -221,7 +258,8 @@ const getAllAssignees = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({}, "name email role");
+    const workspaceId = req.user.workspaceId;
+    const users = await User.find({ workspace: workspaceId }, "name email role");
     res.status(200).json({
       success: true,
       users,

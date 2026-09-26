@@ -30,6 +30,7 @@ const filterTodosByDate = async (req, res) => {
     }
     const role = req.user.role;
     let query = {
+      workspace: req.user.workspaceId,
       createdAt: { $gte: startDate, $lte: endDate }
     };
     if (role !== "Admin") {

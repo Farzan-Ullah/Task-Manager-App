@@ -11,7 +11,7 @@ const Register = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "Employee",
+    inviteCode: "",
   });
 
   const handleChange = (e) => {
@@ -29,7 +29,7 @@ const Register = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role,
+        inviteCode: formData.inviteCode,
       });
       if (res.data.success) {
         toast.success("Registration successful! Please login.");
@@ -124,11 +124,12 @@ const Register = () => {
                   <Shield className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  name="adminCode"
-                  type="password"
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value === "SECRETADMIN" ? "Admin" : "Employee" })}
+                  name="inviteCode"
+                  type="text"
+                  value={formData.inviteCode}
+                  onChange={handleChange}
                   className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-12 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
-                  placeholder="Enter invite code"
+                  placeholder="Enter invite code to join a workspace"
                 />
               </div>
             </div>

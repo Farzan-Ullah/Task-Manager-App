@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema(
       default: "Employee",
     },
     assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    workspace: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+    },
   },
   { timestamps: true }
 );
