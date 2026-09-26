@@ -22,7 +22,10 @@ app.get("/", (req, res) => {
 
 app.use("/api/user", userRoutes);
 app.use("/api/todos", verifyToken, todoRoutes);
+app.use("/user", userRoutes);
+app.use("/todos", verifyToken, todoRoutes);
 app.use("/share/:id", ShareTodo);
+app.use("/api/share/:id", ShareTodo);
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(port, () => {
