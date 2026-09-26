@@ -14,7 +14,7 @@ const Board = () => {
   const [activeMenu, setActiveMenu] = useState(null);
   const [editData, setEditData] = useState(null);
 
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
   const isAdmin = user.role === "Admin";
 
   const fetchTodos = async () => {

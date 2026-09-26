@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import Cookies from "js-cookie";
 
 const Settings = () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
   const [formData, setFormData] = useState({
     name: user.name || "",
     email: user.email || "",
@@ -26,10 +26,9 @@ const Settings = () => {
       if (res.data.success) {
         toast.success("Profile updated successfully");
         const updatedUser = { ...user, name: res.data.name, email: res.data.email };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        sessionStorage.setItem("user", JSON.stringify(updatedUser));
         if (res.data.token) {
-          Cookies.set("token", res.data.token, { expires: 2 });
-          localStorage.setItem("token", res.data.token);
+          sessionStorage.setItem("token", res.data.token);
         }
         setFormData({ ...formData, currentPassword: "", newPassword: "" });
       }

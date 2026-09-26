@@ -8,10 +8,10 @@ import api from "../utils/api";
 const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
 
   useEffect(() => {
-    const token = localStorage.getItem("token") || Cookies.get("token");
+    const token = sessionStorage.getItem("token");
     if (!token) {
       navigate("/login");
     }
@@ -20,9 +20,8 @@ const DashboardLayout = () => {
   const handleLogout = async () => {
     try {
       await api.post("/user/logout");
-      Cookies.remove("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("token");
       toast.success("Logged out successfully");
       navigate("/login");
     } catch (error) {
