@@ -24,6 +24,10 @@ app.use("/api/user", userRoutes);
 app.use("/api/todos", verifyToken, todoRoutes);
 app.use("/share/:id", ShareTodo);
 
-app.listen(port, () => {
-  console.log(`server is running on ${port}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(port, () => {
+    console.log(`server is running on ${port}`);
+  });
+}
+
+module.exports = app;
