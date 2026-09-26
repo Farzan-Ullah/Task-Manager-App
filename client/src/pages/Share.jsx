@@ -11,7 +11,7 @@ const Share = () => {
   useEffect(() => {
     const fetchTodo = async () => {
       try {
-        const res = await api.get(`http://localhost:5001/share/${id}`);
+        const res = await api.get(`/share/${id}`);
         if (res.data.success) {
           setTodo(res.data.todo);
         }
