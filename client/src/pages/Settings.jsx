@@ -29,6 +29,7 @@ const Settings = () => {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         if (res.data.token) {
           Cookies.set("token", res.data.token, { expires: 2 });
+          localStorage.setItem("token", res.data.token);
         }
         setFormData({ ...formData, currentPassword: "", newPassword: "" });
       }

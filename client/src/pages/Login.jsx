@@ -22,6 +22,7 @@ const Login = () => {
       const res = await api.post("/user/login", formData);
       if (res.data.success) {
         Cookies.set("token", res.data.token, { expires: 2 });
+        localStorage.setItem("token", res.data.token);
         localStorage.setItem("user", JSON.stringify({
           name: res.data.name,
           email: res.data.email,

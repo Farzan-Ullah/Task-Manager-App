@@ -22,6 +22,7 @@ const DashboardLayout = () => {
       await api.post("/user/logout");
       Cookies.remove("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("token");
       toast.success("Logged out successfully");
       navigate("/login");
     } catch (error) {
