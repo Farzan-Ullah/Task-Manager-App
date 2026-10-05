@@ -26,13 +26,15 @@ import AttachmentsManager from "./AttachmentsManager";
 import DevelopmentPanel from "./DevelopmentPanel";
 import CommentsSection from "./CommentsSection";
 import ActivityFeed from "./ActivityFeed";
+import LogTimeModal from "../timesheets/LogTimeModal";
 
 const IssueDetailModal = () => {
-  const { currentProject, currentWorkspace, user, startTimer, workspaceMembers = [], isGuest } = useApp();
+  const { currentProject, currentWorkspace, user, workspaceMembers = [], isGuest } = useApp();
   const [issueId, setIssueId] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("comments"); // "comments" | "activity"
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   // Editable local fields
   const [title, setTitle] = useState("");
@@ -299,11 +301,11 @@ const IssueDetailModal = () => {
           <div className="flex items-center space-x-2">
             {!isGuest && (
               <button
-                onClick={() => startTimer(issue)}
+                onClick={() => setIsLogModalOpen(true)}
                 className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-950/80 transition-colors"
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>Start Timer</span>
+                <span>Log Time</span>
               </button>
             )}
 
@@ -712,11 +714,11 @@ const IssueDetailModal = () => {
                 {!isGuest && (
                   <button
                     type="button"
-                    onClick={() => startTimer(issue)}
+                    onClick={() => setIsLogModalOpen(true)}
                     className="w-full py-1.5 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/80 font-semibold transition-colors flex items-center justify-center space-x-1.5"
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Start Stopwatch</span>
+                    <span>Log Work Time</span>
                   </button>
                 )}
               </div>
@@ -756,6 +758,17 @@ const IssueDetailModal = () => {
           </div>
         ) : null}
       </div>
+
+      {/* Manual Time Log Modal */}
+      <LogTimeModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+        currentProject={currentProject}
+        initialIssue={issue}
+        onTimeLogged={() => {
+          fetchData();
+        }}
+      />
     </div>
   );
 };

@@ -11,7 +11,7 @@ function formatDuration(minutes) {
   return `${h}h ${m}m`;
 }
 
-const TimeLogTable = ({ timeLogs = [], onDeleteLog, loading = false }) => {
+const TimeLogTable = ({ timeLogs = [], onDeleteLog, loading = false, isManager = false }) => {
   const { user } = useApp();
 
   const handleIssueClick = (issueId) => {
@@ -61,8 +61,10 @@ const TimeLogTable = ({ timeLogs = [], onDeleteLog, loading = false }) => {
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
             {timeLogs.map((log) => {
-              const isOwner =
-                user?.userId === log.userId?._id || user?.userId === log.userId;
+              const logUserId = log.userId?._id || log.userId;
+              const currentUid = user?.userId || user?._id;
+              const isOwner = currentUid && (currentUid === logUserId);
+              const canDelete = isManager || isOwner;
               const issueId = log.issueId?._id || log.issueId;
 
               return (
@@ -127,7 +129,7 @@ const TimeLogTable = ({ timeLogs = [], onDeleteLog, loading = false }) => {
 
                   {/* Action */}
                   <td className="py-3 px-4 text-right whitespace-nowrap">
-                    {isOwner && (
+                    {canDelete && (
                       <button
                         onClick={() => onDeleteLog && onDeleteLog(log._id)}
                         className="p-1 text-gray-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors opacity-0 group-hover:opacity-100"

@@ -15,7 +15,6 @@ import {
   X,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
-import ThemeToggle from "./ThemeToggle";
 
 const navigationItems = [
   { name: "Kanban Board", path: "/dash/board", icon: Kanban },
@@ -31,11 +30,16 @@ const navigationItems = [
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const { currentProject, currentWorkspace, isGuest } = useApp();
+  const { currentProject, currentWorkspace, isGuest, isManager } = useApp();
 
   const filteredNavItems = navigationItems.filter((item) => {
+    // Analysis reports and automations are visible ONLY to Admins and Project Managers
+    if (item.name === "Reports & Analytics" || item.name === "Automations") {
+      if (!isManager) return false;
+    }
+
     if (isGuest) {
-      if (item.name === "Automations" || item.name === "Settings" || item.name === "Timesheets") {
+      if (item.name === "Settings") {
         return false;
       }
     }
@@ -118,14 +122,8 @@ const Sidebar = ({ isOpen, onClose }) => {
           </nav>
         </div>
 
-        {/* Footer Area with Theme Switcher & Workspace Info */}
-        <div className="p-3 border-t border-gray-100 dark:border-slate-800 space-y-2">
-          {/* Quick theme switcher row in sidebar */}
-          <div className="flex items-center justify-between px-2 py-1">
-            <span className="text-[11px] font-medium text-gray-500 dark:text-slate-400">Theme</span>
-            <ThemeToggle variant="switch" />
-          </div>
-
+        {/* Footer Area with Workspace Info */}
+        <div className="p-3 border-t border-gray-100 dark:border-slate-800">
           <div className="px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-50/50 dark:from-slate-800/80 to-purple-50/50 dark:to-slate-800/80 border border-indigo-100/50 dark:border-slate-700/60 text-[11px] text-gray-600 dark:text-slate-300">
             <span className="font-semibold text-indigo-900 dark:text-indigo-400">Workspace</span>
             <p className="truncate text-gray-500 dark:text-slate-400 mt-0.5">

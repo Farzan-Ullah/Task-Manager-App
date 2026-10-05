@@ -1,5 +1,47 @@
 const mongoose = require("mongoose");
-const { TimeLog, Issue } = require("../../models");
+const { TimeLog, Issue, Project, Workspace, User } = require("../../models");
+
+/**
+ * Helper to check if requester has Manager/Admin access
+ */
+async function isManagerOrAdmin(userId, projectId, issueId) {
+  if (!userId) return false;
+  const user = await User.findById(userId);
+  if (user && (user.role === "Admin" || user.role === "Workspace Admin")) return true;
+
+  let targetProjectId = projectId;
+  if (!targetProjectId && issueId) {
+    const issue = await Issue.findById(issueId);
+    if (issue) targetProjectId = issue.projectId;
+  }
+
+  if (targetProjectId) {
+    const project = await Project.findById(targetProjectId);
+    if (project) {
+      if (project.leadId && project.leadId.toString() === userId.toString()) return true;
+
+      const workspace = await Workspace.findById(project.workspaceId);
+      if (workspace) {
+        if (workspace.owner && workspace.owner.toString() === userId.toString()) return true;
+        const wkspMember = workspace.members.find(
+          (m) => m.userId && m.userId.toString() === userId.toString() && m.status === "ACTIVE"
+        );
+        if (wkspMember && (wkspMember.role === "Workspace Admin" || wkspMember.role === "Project Manager")) {
+          return true;
+        }
+      }
+
+      const projMember = project.members.find(
+        (m) => m.userId && m.userId.toString() === userId.toString()
+      );
+      if (projMember && (projMember.role === "Project Manager" || projMember.role === "Workspace Admin")) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 
 /**
  * Log time on an issue
@@ -16,9 +58,27 @@ const createTimeLog = async (req, res, next) => {
       });
     }
 
-    const issue = await Issue.findById(issueId);
+    let issue = null;
+    const cleanIssueId = String(issueId).trim();
+    if (/^[0-9a-fA-F]{24}$/.test(cleanIssueId)) {
+      issue = await Issue.findById(cleanIssueId);
+    }
     if (!issue) {
-      return res.status(404).json({ success: false, message: "Issue not found" });
+      issue = await Issue.findOne({
+        key: new RegExp(`^${cleanIssueId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      });
+    }
+    if (!issue && /^[a-zA-Z0-9]+[\s#_]+[0-9]+$/.test(cleanIssueId)) {
+      const normalizedKey = cleanIssueId.replace(/[\s#_]+/, "-").toUpperCase();
+      issue = await Issue.findOne({ key: normalizedKey });
+    }
+    const numOnly = cleanIssueId.replace(/^#/, "").trim();
+    if (!issue && /^\d+$/.test(numOnly)) {
+      issue = await Issue.findOne({ key: new RegExp(`-${numOnly}$`, "i") });
+    }
+
+    if (!issue) {
+      return res.status(404).json({ success: false, message: `Issue "${cleanIssueId}" not found` });
     }
 
     if (req.user.role === "Guest") {
@@ -29,7 +89,7 @@ const createTimeLog = async (req, res, next) => {
     }
 
     const timeLog = new TimeLog({
-      issueId,
+      issueId: issue._id,
       userId,
       projectId: issue.projectId,
       minutes: Number(minutes),
@@ -59,11 +119,21 @@ const createTimeLog = async (req, res, next) => {
 const getTimeLogs = async (req, res, next) => {
   try {
     const { issueId, projectId, userId, startDate, endDate } = req.query;
+    const currentUserId = req.user.userId;
 
     const query = {};
     if (issueId) query.issueId = issueId;
     if (projectId) query.projectId = projectId;
-    if (userId) query.userId = userId;
+
+    const hasManagerPrivileges = await isManagerOrAdmin(currentUserId, projectId, issueId);
+
+    if (!hasManagerPrivileges) {
+      // Normal employee / member can ONLY see their own time logs
+      query.userId = currentUserId;
+    } else if (userId && userId !== "all") {
+      // Admin / Manager can filter by any specific user or view all
+      query.userId = userId;
+    }
 
     if (startDate || endDate) {
       query.date = {};
@@ -95,10 +165,20 @@ const getTimeLogs = async (req, res, next) => {
  */
 const getTimesheetSummary = async (req, res, next) => {
   try {
-    const { projectId, startDate, endDate } = req.query;
+    const { projectId, startDate, endDate, userId } = req.query;
+    const currentUserId = req.user.userId;
 
     const matchQuery = {};
     if (projectId) matchQuery.projectId = new mongoose.Types.ObjectId(projectId);
+
+    const hasManagerPrivileges = await isManagerOrAdmin(currentUserId, projectId);
+
+    if (!hasManagerPrivileges) {
+      // Normal employee / member summary is strictly isolated to their own logged hours
+      matchQuery.userId = new mongoose.Types.ObjectId(currentUserId);
+    } else if (userId && userId !== "all") {
+      matchQuery.userId = new mongoose.Types.ObjectId(userId);
+    }
 
     if (startDate || endDate) {
       matchQuery.date = {};
@@ -172,14 +252,16 @@ const getTimesheetSummary = async (req, res, next) => {
 const deleteTimeLog = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const userId = req.user.userId;
+    const currentUserId = req.user.userId;
 
     const timeLog = await TimeLog.findById(id);
     if (!timeLog) {
       return res.status(404).json({ success: false, message: "Time log entry not found" });
     }
 
-    if (timeLog.userId.toString() !== userId.toString() && req.user.role !== "Admin") {
+    const hasManagerPrivileges = await isManagerOrAdmin(currentUserId, timeLog.projectId);
+
+    if (timeLog.userId.toString() !== currentUserId.toString() && !hasManagerPrivileges) {
       return res.status(403).json({ success: false, message: "You can only delete your own time logs" });
     }
 

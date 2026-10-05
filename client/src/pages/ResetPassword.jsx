@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import api from "../utils/api";
 import { Lock, Shield, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft } from "lucide-react";
-import ThemeToggle from "../components/common/ThemeToggle";
 
 const ResetPassword = () => {
   const { token } = useParams();
@@ -107,11 +106,6 @@ const ResetPassword = () => {
 
       {/* Right Section - Form */}
       <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 xl:px-24 bg-white dark:bg-slate-950 relative">
-        {/* Top Floating Controls */}
-        <div className="absolute top-6 right-6 z-20">
-          <ThemeToggle variant="icon" />
-        </div>
-
         <div className="absolute top-6 left-6 lg:hidden">
           <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform -rotate-6">
             <Shield className="text-white h-6 w-6 transform rotate-6" />

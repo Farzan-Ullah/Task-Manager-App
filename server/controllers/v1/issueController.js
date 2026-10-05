@@ -314,26 +314,76 @@ const getIssueById = async (req, res, next) => {
       return res.status(400).json({ success: false, message: "Invalid issue ID or key" });
     }
 
-    // Support lookup by ObjectId or issue key (e.g. CRM-101)
-    let query;
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query = { _id: id };
-    } else if (typeof id === "string" && id.includes("-")) {
-      query = { key: id.toUpperCase() };
-    } else {
-      return res.status(400).json({ success: false, message: "Invalid issue identifier format" });
+    // Support flexible lookup by ObjectId, issue key (CRM-101), normalized key (CRM 101), or number (#101, 101)
+    const rawId = String(id).trim();
+    const projectId = req.query.projectId;
+
+    let issue = null;
+
+    // 1. Try ObjectId (strict 24-hex string)
+    if (/^[0-9a-fA-F]{24}$/.test(rawId)) {
+      issue = await Issue.findById(rawId);
     }
 
-    const issue = await Issue.findOne(query)
-      .populate("assigneeId", "name email avatar")
-      .populate("reporterId", "name email avatar")
-      .populate("sprintId", "name status startDate endDate")
-      .populate("watchers", "name email avatar")
-      .populate("parentId", "key title status");
+    // 2. Try exact Key match (case-insensitive)
+    if (!issue) {
+      issue = await Issue.findOne({
+        key: new RegExp(`^${rawId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      });
+    }
+
+    // 3. Try normalizing key separators (e.g. "CRM 101", "CRM#101", "CRM_101" -> "CRM-101")
+    if (!issue && /^[a-zA-Z0-9]+[\s#_]+[0-9]+$/.test(rawId)) {
+      const normalizedKey = rawId.replace(/[\s#_]+/, "-").toUpperCase();
+      issue = await Issue.findOne({ key: normalizedKey });
+    }
+
+    // 4. Try numeric-only ID (e.g. "101" or "#101")
+    const numOnly = rawId.replace(/^#/, "").trim();
+    if (!issue && /^\d+$/.test(numOnly)) {
+      if (projectId) {
+        issue = await Issue.findOne({
+          projectId,
+          key: new RegExp(`-${numOnly}$`, "i"),
+        });
+      }
+      if (!issue) {
+        issue = await Issue.findOne({
+          key: new RegExp(`-${numOnly}$`, "i"),
+        });
+      }
+    }
+
+    // 5. Try matching project key + number if projectId is provided
+    if (!issue && projectId) {
+      const project = await Project.findById(projectId);
+      if (project && project.key) {
+        issue = await Issue.findOne({
+          projectId: project._id,
+          key: new RegExp(`^${project.key}-${numOnly}$`, "i"),
+        });
+      }
+    }
+
+    // 6. Try title search in current project if projectId is provided
+    if (!issue && projectId && rawId.length >= 2) {
+      issue = await Issue.findOne({
+        projectId,
+        title: new RegExp(rawId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      });
+    }
 
     if (!issue) {
-      return res.status(404).json({ success: false, message: "Issue not found" });
+      return res.status(404).json({ success: false, message: `Issue "${rawId}" not found` });
     }
+
+    await issue.populate([
+      { path: "assigneeId", select: "name email avatar" },
+      { path: "reporterId", select: "name email avatar" },
+      { path: "sprintId", select: "name status startDate endDate" },
+      { path: "watchers", select: "name email avatar" },
+      { path: "parentId", select: "key title status" },
+    ]);
 
     // Load subtasks
     const subtasks = await Issue.find({ parentId: issue._id })

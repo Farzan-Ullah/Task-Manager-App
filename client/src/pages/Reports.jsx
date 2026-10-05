@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   LineChart as LineChartIcon,
   Flame,
@@ -9,6 +10,7 @@ import {
   AlertTriangle,
   Clock,
   Sparkles,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../context/AppContext";
@@ -19,7 +21,8 @@ import CumulativeFlowTab from "../components/reports/CumulativeFlowTab";
 import WorkloadTab from "../components/reports/WorkloadTab";
 
 const Reports = () => {
-  const { currentProject } = useApp();
+  const navigate = useNavigate();
+  const { currentProject, isManager } = useApp();
 
   const [activeTab, setActiveTab] = useState("burndown"); // "burndown" | "velocity" | "cfd" | "workload"
   const [summary, setSummary] = useState(null);
@@ -27,7 +30,7 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    if (!currentProject?._id) {
+    if (!currentProject?._id || !isManager) {
       setLoading(false);
       return;
     }
@@ -51,11 +54,37 @@ const Reports = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentProject?._id]);
+  }, [currentProject?._id, isManager]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (isManager) {
+      fetchData();
+    }
+  }, [fetchData, isManager]);
+
+  if (!isManager) {
+    return (
+      <div className="h-full flex items-center justify-center text-center p-8">
+        <div className="max-w-md mx-auto p-6 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-xl space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Access Restricted</h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+              Agile delivery reports and team analytics are exclusively accessible to Workspace Admins and Project Managers.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/dash/board")}
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          >
+            Back to Kanban Board
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentProject) {
     return (

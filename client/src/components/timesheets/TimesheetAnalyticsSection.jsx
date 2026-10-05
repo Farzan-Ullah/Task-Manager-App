@@ -2,12 +2,12 @@ import React from "react";
 import { BarChart3, Users, Clock } from "lucide-react";
 import moment from "moment";
 
-const TimesheetAnalyticsSection = ({ byDate = [], byUser = [], totalMinutes = 0 }) => {
+const TimesheetAnalyticsSection = ({ byDate = [], byUser = [], totalMinutes = 0, isManager = true }) => {
   // Find max daily minutes for bar scale
   const maxDayMinutes = Math.max(...byDate.map((d) => d.totalMinutes), 60);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className={`grid grid-cols-1 ${isManager ? "lg:grid-cols-2" : ""} gap-4`}>
       {/* Daily Workload Distribution */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200/80 dark:border-slate-800 p-5 shadow-2xs flex flex-col justify-between">
         <div>
@@ -17,7 +17,7 @@ const TimesheetAnalyticsSection = ({ byDate = [], byUser = [], totalMinutes = 0 
                 <BarChart3 className="w-3.5 h-3.5" />
               </div>
               <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
-                Daily Work Distribution
+                {isManager ? "Daily Work Distribution" : "My Daily Work Distribution"}
               </h3>
             </div>
             <span className="text-[11px] text-gray-400 dark:text-slate-500 font-medium">
@@ -63,17 +63,18 @@ const TimesheetAnalyticsSection = ({ byDate = [], byUser = [], totalMinutes = 0 
         </div>
       </div>
 
-      {/* Team Member Workload Breakdown */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200/80 dark:border-slate-800 p-5 shadow-2xs">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
-              <Users className="w-3.5 h-3.5" />
+      {/* Team Member Workload Breakdown - Visible only to Managers */}
+      {isManager && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200/80 dark:border-slate-800 p-5 shadow-2xs">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
+                <Users className="w-3.5 h-3.5" />
+              </div>
+              <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
+                Team Member Contributions
+              </h3>
             </div>
-            <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider">
-              Member Contributions
-            </h3>
-          </div>
           <span className="text-[11px] text-gray-400 dark:text-slate-500 font-medium">
             {byUser.length} contributor{byUser.length !== 1 ? "s" : ""}
           </span>
@@ -114,7 +115,8 @@ const TimesheetAnalyticsSection = ({ byDate = [], byUser = [], totalMinutes = 0 
             })}
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

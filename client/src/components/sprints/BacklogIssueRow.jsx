@@ -23,7 +23,7 @@ const BacklogIssueRow = ({
   onMoveToSprint,
   availableSprints = [],
 }) => {
-  const { startTimer, user, currentWorkspace, currentProject, workspaceMembers = [], isGuest } = useApp();
+  const { user, currentWorkspace, currentProject, workspaceMembers = [], isGuest } = useApp();
   const [showMenu, setShowMenu] = useState(false);
 
   const isManager = React.useMemo(() => {
@@ -224,17 +224,6 @@ const BacklogIssueRow = ({
 
               {showMenu && (
                 <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 z-30 py-1 text-xs animate-in fade-in zoom-in-95 duration-100">
-                  <button
-                    onClick={() => {
-                      startTimer(issue);
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center px-3 py-1.5 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60"
-                  >
-                    <Clock className="w-3.5 h-3.5 mr-2 text-indigo-500" />
-                    Start Timer
-                  </button>
-
                   {/* Move to another sprint or backlog: Manager only */}
                   {isManager && availableSprints.length > 0 && (
                     <div className="border-t border-gray-100 dark:border-slate-700 my-1 py-1">

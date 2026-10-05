@@ -7,7 +7,7 @@ const { requireProjectRole } = require("../../middlewares/rbac");
 router.use(verifyToken);
 
 router.post("/", requireProjectRole(["Project Manager"]), automationCtrl.createAutomation);
-router.get("/", automationCtrl.getAutomations);
+router.get("/", requireProjectRole(["Project Manager"]), automationCtrl.getAutomations);
 router.patch("/:id", requireProjectRole(["Project Manager"]), automationCtrl.updateAutomation);
 router.delete("/:id", requireProjectRole(["Project Manager"]), automationCtrl.deleteAutomation);
 

@@ -65,54 +65,20 @@ export const AppProvider = ({ children }) => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   };
 
-  // Active Stopwatch / Time Tracker State
-  const [timer, setTimer] = useState(() => {
-    try {
-      const saved = localStorage.getItem("promanage_active_timer");
-      return saved ? JSON.parse(saved) : { active: false, seconds: 0, issueId: null, issueKey: "", issueTitle: "" };
-    } catch {
-      return { active: false, seconds: 0, issueId: null, issueKey: "", issueTitle: "" };
-    }
-  });
-
-  const timerIntervalRef = useRef(null);
-
-  // Synchronize timer to localStorage and handle interval
+  // Purge any legacy timer keys from storage
   useEffect(() => {
-    localStorage.setItem("promanage_active_timer", JSON.stringify(timer));
-
-    if (timer.active) {
-      timerIntervalRef.current = setInterval(() => {
-        setTimer((prev) => ({ ...prev, seconds: prev.seconds + 1 }));
-      }, 1000);
-    } else {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    try {
+      localStorage.removeItem("promanage_active_timer");
+      sessionStorage.removeItem("promanage_active_timer");
+    } catch {
+      // ignore
     }
+  }, []);
 
-    return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    };
-  }, [timer.active]);
-
-  const startTimer = (issue = null) => {
-    setTimer((prev) => ({
-      active: true,
-      seconds: prev.seconds,
-      issueId: issue?._id || prev.issueId,
-      issueKey: issue?.key || prev.issueKey,
-      issueTitle: issue?.title || prev.issueTitle,
-    }));
-    toast.info("Timer started");
-  };
-
-  const pauseTimer = () => {
-    setTimer((prev) => ({ ...prev, active: false }));
-    toast.info("Timer paused");
-  };
-
-  const resetTimer = () => {
-    setTimer({ active: false, seconds: 0, issueId: null, issueKey: "", issueTitle: "" });
-  };
+  const timer = { active: false, seconds: 0 };
+  const startTimer = () => {};
+  const pauseTimer = () => {};
+  const resetTimer = () => {};
 
   // Fetch Workspaces
   const fetchWorkspaces = useCallback(async () => {

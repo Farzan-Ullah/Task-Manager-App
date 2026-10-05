@@ -3,7 +3,6 @@ import { useApp } from "../../context/AppContext";
 import { useNavigate } from "react-router-dom";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
-import TimerWidget from "./TimerWidget";
 import NotificationsPopover from "./NotificationsPopover";
 import ThemeToggle from "./ThemeToggle";
 import { Search, Plus, LogOut, Settings as SettingsIcon, Menu, Eye } from "lucide-react";
@@ -101,13 +100,6 @@ const TopNavbar = ({ onToggleSidebar }) => {
           </div>
         )}
 
-        {/* Live Timer Widget (Hidden for Guests) */}
-        {!isGuest && (
-          <div className="hidden lg:block">
-            <TimerWidget />
-          </div>
-        )}
-
         {/* Theme Toggle Button */}
         <ThemeToggle />
 
@@ -137,11 +129,6 @@ const TopNavbar = ({ onToggleSidebar }) => {
                 }`}>
                   {isGuest ? "Guest (Stakeholder)" : userWorkspaceRole || user?.role || "Member"}
                 </span>
-              </div>
-
-              {/* Theme Toggle within menu */}
-              <div className="py-1 border-b border-gray-100 dark:border-slate-800">
-                <ThemeToggle variant="menu-item" />
               </div>
 
               {!isGuest && (

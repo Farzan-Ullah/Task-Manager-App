@@ -21,7 +21,7 @@ import { useApp } from "../../context/AppContext";
 
 const KanbanCard = ({ issue, index, onDelete, onEdit, onSelect }) => {
   const [showMenu, setShowMenu] = useState(false);
-  const { startTimer, user, currentWorkspace, currentProject, workspaceMembers = [] } = useApp();
+  const { user, currentWorkspace, currentProject, workspaceMembers = [] } = useApp();
 
   const isManager = React.useMemo(() => {
     if (!user) return false;
@@ -149,16 +149,6 @@ const KanbanCard = ({ issue, index, onDelete, onEdit, onSelect }) => {
                     >
                       <Edit className="w-3.5 h-3.5 mr-2 text-gray-400" />
                       {isManager ? "Edit Issue" : "View Details"}
-                    </button>
-                    <button
-                      onClick={() => {
-                        startTimer(issue);
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center px-3 py-1.5 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60"
-                    >
-                      <Clock className="w-3.5 h-3.5 mr-2 text-indigo-500" />
-                      Start Timer
                     </button>
                     <button
                       onClick={handleCopyLink}

@@ -8,6 +8,7 @@ import {
   Users,
   Search,
   RotateCcw,
+  User,
 } from "lucide-react";
 import moment from "moment";
 import { toast } from "sonner";
@@ -19,7 +20,8 @@ import TimeLogTable from "../components/timesheets/TimeLogTable";
 import LogTimeModal from "../components/timesheets/LogTimeModal";
 
 const Timesheets = () => {
-  const { currentProject } = useApp();
+  const { currentProject, user, isManager } = useApp();
+  const currentUserId = (user?.userId || user?._id)?.toString();
 
   const [timeLogs, setTimeLogs] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
@@ -79,7 +81,14 @@ const Timesheets = () => {
 
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
-      if (selectedUserId !== "all") params.append("userId", selectedUserId);
+
+      // If user is a manager, allow filtering by selected member or "all"
+      // If user is a normal employee, always isolate to their own userId
+      if (isManager) {
+        if (selectedUserId !== "all") params.append("userId", selectedUserId);
+      } else if (currentUserId) {
+        params.append("userId", currentUserId);
+      }
 
       const [logsRes, summaryRes] = await Promise.all([
         api.get(`/v1/time-logs?${params.toString()}`),
@@ -99,10 +108,16 @@ const Timesheets = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentProject?._id, startDate, endDate, selectedUserId]);
+  }, [currentProject?._id, startDate, endDate, selectedUserId, isManager, currentUserId]);
 
   useEffect(() => {
     fetchTimesheetData();
+  }, [fetchTimesheetData]);
+
+  useEffect(() => {
+    const handleUpdate = () => fetchTimesheetData();
+    window.addEventListener("timelog-updated", handleUpdate);
+    return () => window.removeEventListener("timelog-updated", handleUpdate);
   }, [fetchTimesheetData]);
 
   // Delete Log Entry
@@ -227,7 +242,9 @@ const Timesheets = () => {
             </span>
           </div>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-            Audit logged work hours, team velocity, and project effort distribution
+            {isManager
+              ? "Audit logged work hours, team velocity, and project effort distribution"
+              : "Track and log your personal work hours and task time entries"}
           </p>
         </div>
 
@@ -277,25 +294,32 @@ const Timesheets = () => {
             ))}
           </div>
 
-          {/* Member Picker */}
-          <div className="flex items-center space-x-2">
-            <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-medium text-gray-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/40 text-xs"
-            >
-              <option value="all">All Members</option>
-              {(currentProject.members || []).map((m) => (
-                <option
-                  key={m.userId?._id || m.userId}
-                  value={m.userId?._id || m.userId}
-                >
-                  {m.userId?.name || m.userId?.email || "Member"}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Member Picker - Full member select for Managers; Personal Indicator for Employees */}
+          {isManager ? (
+            <div className="flex items-center space-x-2">
+              <Users className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-medium text-gray-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/40 text-xs"
+              >
+                <option value="all">All Members</option>
+                {(currentProject.members || []).map((m) => (
+                  <option
+                    key={m.userId?._id || m.userId}
+                    value={m.userId?._id || m.userId}
+                  >
+                    {m.userId?.name || m.userId?.email || "Member"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 text-xs font-semibold">
+              <User className="w-3.5 h-3.5" />
+              <span>Personal Timesheet: {user?.name || "Self"}</span>
+            </div>
+          )}
         </div>
 
         {/* Custom Date Pickers & Text Search */}
@@ -340,6 +364,7 @@ const Timesheets = () => {
         activeContributors={metrics.activeContributors}
         dailyAverage={metrics.dailyAverage}
         entriesCount={metrics.entriesCount}
+        isManager={isManager}
       />
 
       {/* Analytics Visual Breakdown */}
@@ -347,6 +372,7 @@ const Timesheets = () => {
         byDate={summaryData?.byDate || []}
         byUser={summaryData?.byUser || []}
         totalMinutes={summaryData?.totalMinutes || 0}
+        isManager={isManager}
       />
 
       {/* Detailed Entries Table */}
@@ -360,6 +386,7 @@ const Timesheets = () => {
           timeLogs={filteredTimeLogs}
           onDeleteLog={handleDeleteLog}
           loading={loading}
+          isManager={isManager}
         />
       </div>
 

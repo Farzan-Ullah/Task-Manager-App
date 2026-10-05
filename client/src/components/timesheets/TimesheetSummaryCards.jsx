@@ -7,6 +7,7 @@ const TimesheetSummaryCards = ({
   activeContributors = 0,
   dailyAverage = 0,
   entriesCount = 0,
+  isManager = true,
 }) => {
   const cards = [
     {
@@ -23,13 +24,21 @@ const TimesheetSummaryCards = ({
       icon: CalendarDays,
       color: "text-emerald-600 bg-emerald-50 border-emerald-100",
     },
-    {
-      title: "Active Contributors",
-      value: activeContributors,
-      subtitle: "Team members logged",
-      icon: Users,
-      color: "text-purple-600 bg-purple-50 border-purple-100",
-    },
+    isManager
+      ? {
+          title: "Active Contributors",
+          value: activeContributors,
+          subtitle: "Team members logged",
+          icon: Users,
+          color: "text-purple-600 bg-purple-50 border-purple-100",
+        }
+      : {
+          title: "Logged Entries",
+          value: entriesCount,
+          subtitle: "Personal work records",
+          icon: CalendarDays,
+          color: "text-purple-600 bg-purple-50 border-purple-100",
+        },
     {
       title: "Daily Average",
       value: `${dailyAverage}h`,

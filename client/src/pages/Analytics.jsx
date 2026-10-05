@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { CircleDot } from "lucide-react";
+import { CircleDot, ShieldAlert } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 const Analytics = () => {
+  const navigate = useNavigate();
+  const { isManager } = useApp();
   const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
+    if (!isManager) return;
     const fetchAnalytics = async () => {
       try {
         const res = await api.get("/todos/analytics/month");
@@ -18,7 +23,31 @@ const Analytics = () => {
       }
     };
     fetchAnalytics();
-  }, []);
+  }, [isManager]);
+
+  if (!isManager) {
+    return (
+      <div className="h-full flex items-center justify-center text-center p-8">
+        <div className="max-w-md mx-auto p-6 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-xl space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+            <ShieldAlert className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Access Restricted</h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+              Analytics dashboards are exclusively visible to Workspace Admins and Project Managers.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/dash/board")}
+            className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+          >
+            Back to Kanban Board
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!analytics) return <div className="p-8 text-center text-gray-500 dark:text-slate-400">Loading analytics...</div>;
 

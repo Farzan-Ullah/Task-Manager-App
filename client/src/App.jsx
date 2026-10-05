@@ -23,7 +23,7 @@ function App() {
   return (
     <BrowserRouter>
       <AppProvider>
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster position="top-center" duration={2200} richColors closeButton={false} />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Register />} />

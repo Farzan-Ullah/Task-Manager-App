@@ -2,8 +2,10 @@ const express = require("express");
 const router = express.Router();
 const reportCtrl = require("../../controllers/v1/reportController");
 const { verifyToken } = require("../../middlewares/TokenVerification");
+const { requireProjectRole } = require("../../middlewares/rbac");
 
 router.use(verifyToken);
+router.use(requireProjectRole(["Project Manager"]));
 
 router.get("/burndown", reportCtrl.getBurndown);
 router.get("/velocity", reportCtrl.getVelocity);
