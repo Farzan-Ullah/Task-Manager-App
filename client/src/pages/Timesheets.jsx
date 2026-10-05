@@ -201,11 +201,11 @@ const Timesheets = () => {
     return (
       <div className="h-full flex items-center justify-center text-center p-8">
         <div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
             <Clock className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-1">No Project Selected</h2>
-          <p className="text-xs text-gray-500 max-w-xs mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">No Project Selected</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400 max-w-xs mb-4">
             Select a project in the navigation bar to view and log work hours.
           </p>
         </div>

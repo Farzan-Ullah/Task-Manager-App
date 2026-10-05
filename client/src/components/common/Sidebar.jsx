@@ -10,6 +10,7 @@ import {
   LineChart,
   Zap,
   Settings,
+  Users,
   Shield,
   X,
 } from "lucide-react";
@@ -25,11 +26,21 @@ const navigationItems = [
   { name: "Timesheets", path: "/dash/timesheets", icon: Clock },
   { name: "Reports & Analytics", path: "/dash/reports", icon: LineChart },
   { name: "Automations", path: "/dash/automations", icon: Zap },
+  { name: "Team Members", path: "/dash/members", icon: Users },
   { name: "Settings", path: "/dash/settings", icon: Settings },
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const { currentProject, currentWorkspace } = useApp();
+  const { currentProject, currentWorkspace, isGuest } = useApp();
+
+  const filteredNavItems = navigationItems.filter((item) => {
+    if (isGuest) {
+      if (item.name === "Automations" || item.name === "Settings" || item.name === "Timesheets") {
+        return false;
+      }
+    }
+    return true;
+  });
 
   return (
     <>
@@ -60,7 +71,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
             <button
               onClick={onClose}
-              className="md:hidden p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              className="md:hidden p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
@@ -87,7 +98,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
           {/* Navigation Links */}
           <nav className="px-3 py-2 space-y-0.5">
-            {navigationItems.map((item) => (
+            {filteredNavItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.path}

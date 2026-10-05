@@ -36,14 +36,14 @@ const ActivityFeed = ({ activities = [] }) => {
         };
       default:
         return {
-          icon: <History className="w-3.5 h-3.5 text-gray-500" />,
+          icon: <History className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />,
           text: `updated the issue`,
         };
     }
   };
 
   if (!activities || activities.length === 0) {
-    return <div className="p-4 text-center text-xs text-gray-400">No activity recorded yet</div>;
+    return <div className="p-4 text-center text-xs text-gray-400 dark:text-slate-500">No activity recorded yet</div>;
   }
 
   return (
@@ -52,18 +52,18 @@ const ActivityFeed = ({ activities = [] }) => {
         const details = getActionDetails(act);
         return (
           <div key={act._id} className="flex items-start space-x-3 text-xs">
-            <div className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center shrink-0 mt-0.5">
               {details.icon}
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-gray-800">
-                <span className="font-semibold text-gray-900">
+              <p className="text-gray-800 dark:text-slate-300">
+                <span className="font-semibold text-gray-900 dark:text-slate-100">
                   {act.actorId?.name || act.actorId?.email || "Someone"}
                 </span>{" "}
                 {details.text}
               </p>
-              <span className="text-[10px] text-gray-400">
+              <span className="text-[10px] text-gray-400 dark:text-slate-400">
                 {moment(act.createdAt).fromNow()}
               </span>
             </div>

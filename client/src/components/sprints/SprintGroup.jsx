@@ -27,6 +27,7 @@ const SprintGroup = ({
   onDeleteIssue,
   onMoveToSprint,
   onQuickCreateIssue,
+  isGuest = false,
 }) => {
   const [isOpen, setIsOpen] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
@@ -129,7 +130,7 @@ const SprintGroup = ({
           )}
 
           {/* Action Buttons */}
-          {!isBacklog && (
+          {!isBacklog && !isGuest && (
             <>
               {sprint.status === "PLANNED" && (
                 <button
@@ -231,49 +232,51 @@ const SprintGroup = ({
               )}
               {provided.placeholder}
 
-              {/* Inline Quick Create Form */}
-              {isQuickCreating ? (
-                <form
-                  onSubmit={handleQuickCreate}
-                  className="flex items-center space-x-2 pt-1"
-                >
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="What needs to be done? Press Enter..."
-                    value={quickTitle}
-                    onChange={(e) => setQuickTitle(e.target.value)}
-                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-indigo-300 dark:border-indigo-600 focus:ring-2 focus:ring-indigo-500/50 outline-none bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-2xs font-medium"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!quickTitle.trim()}
-                    className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 shadow-xs"
+              {/* Inline Quick Create Form - Hidden for Guests */}
+              {!isGuest && (
+                isQuickCreating ? (
+                  <form
+                    onSubmit={handleQuickCreate}
+                    className="flex items-center space-x-2 pt-1"
                   >
-                    Add
-                  </button>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="What needs to be done? Press Enter..."
+                      value={quickTitle}
+                      onChange={(e) => setQuickTitle(e.target.value)}
+                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-indigo-300 dark:border-indigo-600 focus:ring-2 focus:ring-indigo-500/50 outline-none bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-2xs font-medium"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!quickTitle.trim()}
+                      className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40 shadow-xs"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsQuickCreating(false);
+                        setQuickTitle("");
+                      }}
+                      className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsQuickCreating(false);
-                      setQuickTitle("");
-                    }}
-                    className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl"
+                    onClick={() => setIsQuickCreating(true)}
+                    className="w-full py-2 px-3 text-xs font-semibold text-gray-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-slate-800/60 rounded-xl border border-dashed border-transparent hover:border-gray-200 dark:hover:border-slate-700 transition-all flex items-center justify-start space-x-1.5"
                   >
-                    Cancel
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>
+                      Create issue in {isBacklog ? "Backlog" : sprint.name}
+                    </span>
                   </button>
-                </form>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setIsQuickCreating(true)}
-                  className="w-full py-2 px-3 text-xs font-semibold text-gray-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-slate-800/60 rounded-xl border border-dashed border-transparent hover:border-gray-200 dark:hover:border-slate-700 transition-all flex items-center justify-start space-x-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>
-                    Create issue in {isBacklog ? "Backlog" : sprint.name}
-                  </span>
-                </button>
+                )
               )}
             </div>
           )}

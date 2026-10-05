@@ -37,18 +37,36 @@ const createProject = async (req, res, next) => {
 
     const effectiveLeadId = leadId || userId;
 
+    // Automatically include all current workspace members as project members
+    const workspace = await Workspace.findById(workspaceId);
+    const initialMembers = [];
+    const addedUserIds = new Set();
+
+    initialMembers.push({
+      userId: effectiveLeadId,
+      role: "Project Manager",
+    });
+    addedUserIds.add(effectiveLeadId.toString());
+
+    if (workspace && Array.isArray(workspace.members)) {
+      for (const m of workspace.members) {
+        if (m.userId && !addedUserIds.has(m.userId.toString())) {
+          initialMembers.push({
+            userId: m.userId,
+            role: "Member",
+          });
+          addedUserIds.add(m.userId.toString());
+        }
+      }
+    }
+
     const project = new Project({
       workspaceId,
       key: cleanKey,
       name: name.trim(),
       description: description || "",
       leadId: effectiveLeadId,
-      members: [
-        {
-          userId: effectiveLeadId,
-          role: "Project Manager",
-        },
-      ],
+      members: initialMembers,
     });
 
     await project.save();
@@ -136,12 +154,17 @@ const getProjectById = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Project not found" });
     }
 
+    const rawWorkspaceId = project.workspaceId?._id || project.workspaceId;
+    const workspace = await Workspace.findById(rawWorkspaceId)
+      .populate("members.userId", "name email avatar role");
+
     const board = await Board.findOne({ projectId: id });
 
     res.status(200).json({
       success: true,
       project,
       board,
+      workspaceMembers: workspace?.members || [],
     });
   } catch (error) {
     next(error);

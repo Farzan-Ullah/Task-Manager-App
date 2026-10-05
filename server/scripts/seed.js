@@ -95,7 +95,7 @@ async function seedDatabase(targetUri, label = "Active Database") {
       name: "Sarah Connor",
       email: "techzen@gmail.com",
       password: defaultPasswordHash,
-      role: "Admin",
+      role: "Project Manager",
       avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=128&fit=crop&crop=faces",
     },
     {

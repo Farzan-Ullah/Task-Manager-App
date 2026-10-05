@@ -9,6 +9,7 @@ router.use(verifyToken);
 router.post("/", workspaceCtrl.createWorkspace);
 router.get("/", workspaceCtrl.getUserWorkspaces);
 router.get("/:id", workspaceCtrl.getWorkspaceById);
+router.get("/:id/members", workspaceCtrl.getWorkspaceMembers);
 router.patch("/:id", requireWorkspaceRole(["Workspace Admin"]), workspaceCtrl.updateWorkspace);
 router.post("/:id/invite", requireWorkspaceRole(["Workspace Admin"]), workspaceCtrl.inviteMember);
 router.delete("/:id/members/:userId", requireWorkspaceRole(["Workspace Admin"]), workspaceCtrl.removeMember);

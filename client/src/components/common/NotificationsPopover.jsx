@@ -31,7 +31,7 @@ const NotificationsPopover = () => {
       case "AUTOMATION":
         return <Zap className="w-3.5 h-3.5 text-indigo-600" />;
       default:
-        return <Bell className="w-3.5 h-3.5 text-gray-500" />;
+        return <Bell className="w-3.5 h-3.5 text-gray-500 dark:text-slate-400" />;
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { User, Mail, Lock, Eye, EyeOff, Sun, Moon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { User, Mail, Lock, Eye, EyeOff, Sun, Moon, Users, ArrowRight } from "lucide-react";
 import api from "../utils/api";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
@@ -7,7 +8,7 @@ import { useApp } from "../context/AppContext";
 
 const Settings = () => {
   const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-  const { theme, setTheme } = useApp();
+  const { theme, setTheme, currentWorkspace, workspaceMembers } = useApp();
   const [formData, setFormData] = useState({
     name: user.name || "",
     email: user.email || "",
@@ -47,6 +48,38 @@ const Settings = () => {
           Manage your account profile, theme preferences, and credentials
         </p>
       </div>
+
+      {/* Workspace & Team Card */}
+      {currentWorkspace && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xs border border-gray-100 dark:border-slate-800 p-6 sm:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm font-bold text-gray-900 dark:text-slate-100">
+                  Workspace & Team Members
+                </h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-900/40">
+                  {currentWorkspace.plan || "Pro"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                Active: <strong className="text-gray-900 dark:text-slate-200">{currentWorkspace.name}</strong> • Invite Code:{" "}
+                <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                  {currentWorkspace.inviteCode}
+                </span>
+              </p>
+            </div>
+            <Link
+              to="/dash/members"
+              className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 text-xs font-semibold rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-900/40 transition-colors shadow-2xs shrink-0"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Manage Members ({workspaceMembers?.length || 0})</span>
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Appearance / Theme Selector Card */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xs border border-gray-100 dark:border-slate-800 p-6 sm:p-8">

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-import { Building2, ChevronDown, Check, Plus, Copy, Shield, X } from "lucide-react";
+import { Building2, ChevronDown, Check, Plus, Copy, Shield, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import api from "../../utils/api";
 
@@ -124,7 +125,15 @@ const WorkspaceSwitcher = () => {
             })}
           </div>
 
-          <div className="p-2 border-t border-gray-100 dark:border-slate-800 mt-1">
+          <div className="p-2 border-t border-gray-100 dark:border-slate-800 mt-1 space-y-1">
+            <Link
+              to="/dash/members"
+              onClick={() => setIsOpen(false)}
+              className="w-full flex items-center space-x-2 py-2 px-3 rounded-xl text-xs font-semibold text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Workspace Members & Roles</span>
+            </Link>
             <button
               onClick={() => {
                 setIsOpen(false);

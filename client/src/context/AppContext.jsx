@@ -19,6 +19,7 @@ export const AppProvider = ({ children }) => {
 
   const [workspaces, setWorkspaces] = useState([]);
   const [currentWorkspace, setCurrentWorkspace] = useState(null);
+  const [workspaceMembers, setWorkspaceMembers] = useState([]);
   const [projects, setProjects] = useState([]);
   const [currentProject, setCurrentProject] = useState(null);
   const [currentBoard, setCurrentBoard] = useState(null);
@@ -29,10 +30,10 @@ export const AppProvider = ({ children }) => {
   const [isCreateIssueOpen, setIsCreateIssueOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // Theme State: "light" | "dark"
+  // Theme State: "light" | "dark" - isolated per tab/session via sessionStorage
   const [theme, setTheme] = useState(() => {
     try {
-      const savedTheme = localStorage.getItem("promanage_theme");
+      const savedTheme = sessionStorage.getItem("promanage_theme");
       if (savedTheme === "dark" || savedTheme === "light") {
         return savedTheme;
       }
@@ -44,10 +45,12 @@ export const AppProvider = ({ children }) => {
     }
   });
 
-  // Apply theme class to document root
+  // Apply theme class to document root for this tab
   useEffect(() => {
     try {
-      localStorage.setItem("promanage_theme", theme);
+      sessionStorage.setItem("promanage_theme", theme);
+      // Remove any legacy shared localStorage theme so it does not bleed across tabs
+      localStorage.removeItem("promanage_theme");
       if (theme === "dark") {
         document.documentElement.classList.add("dark");
       } else {
@@ -201,12 +204,32 @@ export const AppProvider = ({ children }) => {
     }
   }, []);
 
+  // Fetch Members for current workspace
+  const fetchWorkspaceMembers = useCallback(async (workspaceId) => {
+    if (!workspaceId) {
+      setWorkspaceMembers([]);
+      return;
+    }
+
+    try {
+      const res = await api.get(`/v1/workspaces/${workspaceId}/members`);
+      if (res.data.success && res.data.members) {
+        setWorkspaceMembers(res.data.members);
+      }
+    } catch (err) {
+      console.error("Failed to fetch workspace members:", err);
+    }
+  }, []);
+
   // Switch Workspace
   const switchWorkspace = async (workspace) => {
     setCurrentWorkspace(workspace);
     sessionStorage.setItem("activeWorkspaceId", workspace._id);
     localStorage.setItem("activeWorkspaceId", workspace._id);
-    await fetchProjects(workspace._id);
+    await Promise.all([
+      fetchProjects(workspace._id),
+      fetchWorkspaceMembers(workspace._id),
+    ]);
     toast.success(`Switched to workspace: ${workspace.name}`);
   };
 
@@ -253,12 +276,13 @@ export const AppProvider = ({ children }) => {
     }
   }, [fetchWorkspaces, fetchNotifications]);
 
-  // When workspace changes, fetch its projects
+  // When workspace changes, fetch its projects and members
   useEffect(() => {
     if (currentWorkspace?._id) {
       fetchProjects(currentWorkspace._id);
+      fetchWorkspaceMembers(currentWorkspace._id);
     }
-  }, [currentWorkspace?._id, fetchProjects]);
+  }, [currentWorkspace?._id, fetchProjects, fetchWorkspaceMembers]);
 
   // When project changes, fetch its board
   useEffect(() => {
@@ -293,12 +317,24 @@ export const AppProvider = ({ children }) => {
       });
     };
 
+    const handleMemberUpdate = () => {
+      if (currentWorkspace?._id) {
+        fetchWorkspaceMembers(currentWorkspace._id);
+      }
+    };
+
     socket.on("notification.created", handleNotification);
+    socket.on("member.added", handleMemberUpdate);
+    socket.on("member.removed", handleMemberUpdate);
+    socket.on("member.updated", handleMemberUpdate);
 
     return () => {
       socket.off("notification.created", handleNotification);
+      socket.off("member.added", handleMemberUpdate);
+      socket.off("member.removed", handleMemberUpdate);
+      socket.off("member.updated", handleMemberUpdate);
     };
-  }, [currentWorkspace?._id, currentProject?._id, currentBoard?._id]);
+  }, [currentWorkspace?._id, currentProject?._id, currentBoard?._id, fetchWorkspaceMembers]);
 
   // Global Keyboard Shortcuts (Cmd/Ctrl + K for Search, C for Create Issue)
   useEffect(() => {
@@ -312,6 +348,41 @@ export const AppProvider = ({ children }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Compute active user roles
+  const currentUserId = user?.userId || user?._id;
+  const userWorkspaceMember = workspaceMembers.find(
+    (m) => String(m.userId?._id || m.userId || "") === String(currentUserId || "")
+  );
+  const userWorkspaceRole = userWorkspaceMember?.role || user?.role || "Member";
+
+  const isGuest =
+    user?.role === "Guest" ||
+    userWorkspaceRole === "Guest" ||
+    (currentWorkspace?.members &&
+      currentWorkspace.members.some(
+        (m) =>
+          String(m.userId?._id || m.userId || "") === String(currentUserId || "") &&
+          m.role === "Guest"
+      ));
+
+  const isOwner =
+    currentWorkspace &&
+    (String(currentWorkspace.owner?._id || currentWorkspace.owner || "") ===
+      String(currentUserId || "") ||
+      user?.role === "Admin");
+
+  const isManager =
+    !isGuest &&
+    (isOwner ||
+      userWorkspaceRole === "Workspace Admin" ||
+      userWorkspaceRole === "Project Manager" ||
+      (currentProject?.members &&
+        currentProject.members.some(
+          (m) =>
+            String(m.userId?._id || m.userId || "") === String(currentUserId || "") &&
+            (m.role === "Project Manager" || m.role === "Workspace Admin")
+        )));
+
   return (
     <AppContext.Provider
       value={{
@@ -319,6 +390,12 @@ export const AppProvider = ({ children }) => {
         setUser,
         workspaces,
         currentWorkspace,
+        workspaceMembers,
+        fetchWorkspaceMembers,
+        userWorkspaceRole,
+        isGuest,
+        isOwner,
+        isManager,
         switchWorkspace,
         fetchWorkspaces,
         projects,

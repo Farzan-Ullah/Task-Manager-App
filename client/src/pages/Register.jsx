@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import api from "../utils/api";
 import { User, Lock, Mail, Shield, ArrowRight } from "lucide-react";
@@ -7,13 +7,22 @@ import ThemeToggle from "../components/common/ThemeToggle";
 
 const Register = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [isGuest, setIsGuest] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    inviteCode: "",
+    inviteCode: searchParams.get("invite") ? searchParams.get("invite").toUpperCase() : "",
   });
+
+  useEffect(() => {
+    const invite = searchParams.get("invite");
+    if (invite) {
+      setFormData((prev) => ({ ...prev, inviteCode: invite.toUpperCase() }));
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -31,9 +40,15 @@ const Register = () => {
         email: formData.email,
         password: formData.password,
         inviteCode: formData.inviteCode,
+        isGuest: isGuest,
+        role: isGuest ? "Guest" : undefined,
       });
       if (res.data.success) {
-        toast.success("Registration successful! Please login.");
+        toast.success(
+          isGuest
+            ? "Registered as Guest Stakeholder! Please login."
+            : "Registration successful! Please login."
+        );
         navigate("/login");
       }
     } catch (error) {
@@ -138,6 +153,24 @@ const Register = () => {
                   placeholder="Enter invite code to join a workspace"
                 />
               </div>
+
+              {formData.inviteCode && (
+                <div className="mt-2.5 p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/40 flex items-start space-x-2.5">
+                  <input
+                    id="isGuestToggle"
+                    type="checkbox"
+                    checked={isGuest}
+                    onChange={(e) => setIsGuest(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-sky-600 rounded border-gray-300 focus:ring-sky-500 cursor-pointer"
+                  />
+                  <label htmlFor="isGuestToggle" className="text-xs text-sky-900 dark:text-sky-200 cursor-pointer select-none">
+                    <span className="font-semibold block">Join as Guest / External Stakeholder</span>
+                    <span className="text-[11px] text-sky-700/80 dark:text-sky-300/80 block mt-0.5">
+                      Stakeholder view-and-comment access only. Task creation, status dragging, and sprint management are restricted.
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

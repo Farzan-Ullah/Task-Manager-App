@@ -13,6 +13,27 @@ const attachmentSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const pullRequestSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    prNumber: { type: Number },
+    url: { type: String, required: true, trim: true },
+    branch: { type: String, default: "", trim: true },
+    targetBranch: { type: String, default: "main", trim: true },
+    status: {
+      type: String,
+      enum: ["OPEN", "MERGED", "CLOSED"],
+      default: "OPEN",
+    },
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    authorName: { type: String, default: "" },
+    notes: { type: String, default: "" },
+    createdAt: { type: Date, default: Date.now },
+    mergedAt: { type: Date, default: null },
+  },
+  { _id: true }
+);
+
 const issueSchema = new mongoose.Schema(
   {
     projectId: {
@@ -32,7 +53,7 @@ const issueSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["Task", "Bug", "Story"],
+      enum: ["Task", "Bug", "Story", "Issue", "Request"],
       default: "Task",
     },
     title: {
@@ -108,6 +129,7 @@ const issueSchema = new mongoose.Schema(
       default: null,
     },
     attachments: [attachmentSchema],
+    pullRequests: [pullRequestSchema],
     watchers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
     // Legacy fields for 100% backward compatibility

@@ -1,5 +1,10 @@
 const User = require("../models/user");
 const Workspace = require("../models/workspace");
+const Project = require("../models/project");
+const Board = require("../models/board");
+const Counter = require("../models/counter");
+const notificationService = require("../services/notificationService");
+const socketService = require("../services/socketService");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
@@ -13,7 +18,7 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ errorMessage: "Bad Request!" });
     }
 
-    const isExistingUser = await User.findOne({ email: email });
+    const isExistingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (isExistingUser) {
       return res
         .status(400)
@@ -21,41 +26,126 @@ const registerUser = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    let workspaceId;
-    let role = "Employee";
+    const cleanEmail = email.toLowerCase().trim();
 
-    if (inviteCode) {
-      const workspace = await Workspace.findOne({ inviteCode });
+    if (inviteCode && inviteCode.trim()) {
+      const cleanCode = inviteCode.trim().toUpperCase();
+      const workspace = await Workspace.findOne({ inviteCode: cleanCode });
       if (!workspace) {
         return res.status(400).json({ errorMessage: "Invalid invite code!" });
       }
-      workspaceId = workspace._id;
+
+      const isJoiningGuest = req.body.role === "Guest" || req.body.isGuest === true;
+      const role = isJoiningGuest ? "Guest" : "Employee";
+      const wkspRole = isJoiningGuest ? "Guest" : "Member";
+
+      const userData = new User({
+        name: name.trim(),
+        email: cleanEmail,
+        password: hashedPassword,
+        role,
+        workspace: workspace._id,
+        workspaces: [{ workspaceId: workspace._id, role: wkspRole }],
+      });
+      await userData.save();
+
+      // Add to workspace.members
+      workspace.members.push({
+        userId: userData._id,
+        role: wkspRole,
+        status: "ACTIVE",
+        joinedAt: new Date(),
+      });
+      await workspace.save();
+
+      // Automatically add to all existing projects in this workspace so user appears in assignees
+      await Project.updateMany(
+        { workspaceId: workspace._id },
+        { $addToSet: { members: { userId: userData._id, role: wkspRole } } }
+      );
+
+      // Create notification for workspace owner
+      try {
+        await notificationService.createNotification({
+          userId: workspace.owner,
+          type: "INVITATION",
+          title: "New Team Member Joined",
+          message: `${name.trim()} (${cleanEmail}) joined your workspace via invite code.`,
+          payload: { workspaceId: workspace._id, senderId: userData._id },
+        });
+      } catch (notifyErr) {
+        console.warn("Could not dispatch join notification:", notifyErr.message);
+      }
+
+      // Emit socket event to workspace
+      try {
+        socketService.emitToWorkspace(workspace._id, "member.added", {
+          workspaceId: workspace._id,
+          user: {
+            _id: userData._id,
+            name: userData.name,
+            email: userData.email,
+            avatar: userData.avatar,
+            role: wkspRole,
+          },
+        });
+      } catch (sockErr) {
+        console.warn("Could not emit member.added socket:", sockErr.message);
+      }
     } else {
       // Create new workspace
       const newInviteCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+      const role = "Admin";
+      const wkspRole = "Workspace Admin";
+      const tempId = new mongoose.Types.ObjectId();
+
       const workspace = new Workspace({
-        name: `${name}'s Workspace`,
+        name: `${name.trim()}'s Workspace`,
         inviteCode: newInviteCode,
-        owner: new mongoose.Types.ObjectId(), // Placeholder, updated below
+        owner: tempId,
+        members: [
+          {
+            userId: tempId,
+            role: wkspRole,
+            status: "ACTIVE",
+            joinedAt: new Date(),
+          },
+        ],
       });
       await workspace.save();
-      workspaceId = workspace._id;
-      role = "Admin";
-    }
 
-    const userData = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role,
-      workspace: workspaceId,
-    });
-    
-    await userData.save();
-    
-    if (!inviteCode) {
-      await Workspace.findByIdAndUpdate(workspaceId, { owner: userData._id });
+      const userData = new User({
+        _id: tempId,
+        name: name.trim(),
+        email: cleanEmail,
+        password: hashedPassword,
+        role,
+        workspace: workspace._id,
+        workspaces: [{ workspaceId: workspace._id, role: wkspRole }],
+      });
+      await userData.save();
+
+      // Create default Project and Board
+      const project = new Project({
+        workspaceId: workspace._id,
+        key: "PROJ",
+        name: "Main Project",
+        description: "Primary workspace project",
+        leadId: userData._id,
+        members: [{ userId: userData._id, role: "Project Manager" }],
+      });
+      await project.save();
+
+      const board = new Board({
+        projectId: project._id,
+        name: "Kanban Board",
+      });
+      await board.save();
+
+      await Counter.create({
+        projectId: project._id,
+        seq: 100,
+      });
     }
 
     res.json({ success: true, message: "User registered successfully" });

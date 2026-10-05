@@ -11,6 +11,9 @@ import {
   Copy,
   Trash2,
   Edit,
+  GitPullRequest,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import moment from "moment";
@@ -18,12 +21,59 @@ import { useApp } from "../../context/AppContext";
 
 const KanbanCard = ({ issue, index, onDelete, onEdit, onSelect }) => {
   const [showMenu, setShowMenu] = useState(false);
-  const { startTimer } = useApp();
+  const { startTimer, user, currentWorkspace, currentProject, workspaceMembers = [] } = useApp();
+
+  const isManager = React.useMemo(() => {
+    if (!user) return false;
+    const uid = (user.userId || user._id)?.toString();
+    if (!uid) return false;
+    if (user.role === "Admin" || user.role === "admin") return true;
+
+    if (currentWorkspace) {
+      const ownerId = (currentWorkspace.owner?._id || currentWorkspace.owner)?.toString();
+      if (ownerId && ownerId === uid) return true;
+    }
+    const wkspMember = workspaceMembers.find((m) => {
+      const mId = (m.userId?._id || m.userId || m._id)?.toString();
+      return mId === uid;
+    });
+    if (
+      wkspMember &&
+      (wkspMember.role === "Workspace Admin" ||
+        wkspMember.role === "Project Manager" ||
+        wkspMember.role === "Admin")
+    ) {
+      return true;
+    }
+
+    if (currentProject) {
+      const leadId = (currentProject.leadId?._id || currentProject.leadId)?.toString();
+      if (leadId && leadId === uid) return true;
+
+      const projMembers = currentProject.members || [];
+      const projMember = projMembers.find((m) => {
+        const mId = (m.userId?._id || m.userId || m._id)?.toString();
+        return mId === uid;
+      });
+      if (
+        projMember &&
+        (projMember.role === "Project Manager" ||
+          projMember.role === "Workspace Admin" ||
+          projMember.role === "Admin")
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [user, currentWorkspace, workspaceMembers, currentProject]);
 
   const typeIcons = {
     Task: <CheckSquare className="w-3.5 h-3.5 text-blue-500" />,
     Bug: <Bug className="w-3.5 h-3.5 text-red-500" />,
     Story: <Bookmark className="w-3.5 h-3.5 text-emerald-500" />,
+    Issue: <AlertCircle className="w-3.5 h-3.5 text-amber-500" />,
+    Request: <HelpCircle className="w-3.5 h-3.5 text-purple-500" />,
   };
 
   const priorityColors = {
@@ -98,7 +148,7 @@ const KanbanCard = ({ issue, index, onDelete, onEdit, onSelect }) => {
                       className="w-full flex items-center px-3 py-1.5 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/60"
                     >
                       <Edit className="w-3.5 h-3.5 mr-2 text-gray-400" />
-                      Edit Issue
+                      {isManager ? "Edit Issue" : "View Details"}
                     </button>
                     <button
                       onClick={() => {
@@ -117,16 +167,18 @@ const KanbanCard = ({ issue, index, onDelete, onEdit, onSelect }) => {
                       <Copy className="w-3.5 h-3.5 mr-2 text-gray-400" />
                       Copy Link
                     </button>
-                    <button
-                      onClick={() => {
-                        onDelete && onDelete(issue._id);
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400" />
-                      Delete
-                    </button>
+                    {isManager && (
+                      <button
+                        onClick={() => {
+                          onDelete && onDelete(issue._id);
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400" />
+                        Delete
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -192,6 +244,16 @@ const KanbanCard = ({ issue, index, onDelete, onEdit, onSelect }) => {
               {issue.estimate > 0 && (
                 <span className="px-1.5 py-0.2 rounded font-mono font-bold bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300">
                   {issue.estimate} pts
+                </span>
+              )}
+
+              {issue.pullRequests && issue.pullRequests.length > 0 && (
+                <span
+                  className="flex items-center space-x-1 px-1.5 py-0.5 rounded font-mono text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60"
+                  title={`${issue.pullRequests.length} Pull Request(s) linked`}
+                >
+                  <GitPullRequest className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                  <span>{issue.pullRequests.length} PR</span>
                 </span>
               )}
             </div>

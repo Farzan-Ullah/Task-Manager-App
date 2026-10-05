@@ -1,10 +1,81 @@
 const mongoose = require("mongoose");
-const { Issue, Project, Counter, Comment, TimeLog, Activity } = require("../../models");
+const { Issue, Project, Workspace, User, Counter, Comment, TimeLog, Activity } = require("../../models");
 const { initialRank, between } = require("../../utils/lexorank");
 const socketService = require("../../services/socketService");
 const activityService = require("../../services/activityService");
 const notificationService = require("../../services/notificationService");
 const automationService = require("../../services/automationService");
+
+/**
+ * Check if a user has Project Manager or Workspace Admin permissions
+ */
+const isUserManager = async (userId, projectId) => {
+  try {
+    const user = await User.findById(userId);
+    if (user && user.role === "Admin") return true;
+
+    const project = await Project.findById(projectId);
+    if (!project) return false;
+
+    if (project.leadId && project.leadId.toString() === userId.toString()) return true;
+
+    const workspace = await Workspace.findById(project.workspaceId);
+    if (workspace) {
+      if (workspace.owner && workspace.owner.toString() === userId.toString()) return true;
+      const wkspMember = workspace.members?.find(
+        (m) => m.userId.toString() === userId.toString() && m.status === "ACTIVE"
+      );
+      if (wkspMember && wkspMember.role === "Workspace Admin") return true;
+    }
+
+    const projMember = project.members?.find(
+      (m) => m.userId.toString() === userId.toString()
+    );
+    if (projMember && (projMember.role === "Project Manager" || projMember.role === "Workspace Admin")) {
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.error("Error in isUserManager:", err);
+    return false;
+  }
+};
+
+/**
+ * Check if a user is a Guest in the project/workspace
+ */
+const isUserGuest = async (userId, projectId) => {
+  try {
+    const user = await User.findById(userId);
+    if (!user) return false;
+    if (user.role === "Admin") return false;
+    if (user.role === "Guest") return true;
+
+    if (projectId) {
+      const project = await Project.findById(projectId);
+      if (project) {
+        const projMember = project.members?.find(
+          (m) => m.userId.toString() === userId.toString()
+        );
+        if (projMember && projMember.role === "Guest") return true;
+
+        const workspace = await Workspace.findById(project.workspaceId);
+        if (workspace) {
+          const wkspMember = workspace.members?.find(
+            (m) => m.userId.toString() === userId.toString() && m.status === "ACTIVE"
+          );
+          if (wkspMember && wkspMember.role === "Guest") return true;
+        }
+      }
+    }
+
+    return false;
+  } catch (err) {
+    console.error("Error in isUserGuest:", err);
+    return false;
+  }
+};
 
 /**
  * Create a new issue/task
@@ -33,6 +104,25 @@ const createIssue = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "Project ID and issue title are required",
+      });
+    }
+
+    // Guest users cannot create tasks
+    if (await isUserGuest(userId, projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. They cannot create tasks or issues.",
+      });
+    }
+
+    const isManager = await isUserManager(userId, projectId);
+
+    // Jira rule: Tasks/Stories creation & assignment is controlled by Manager.
+    // Employees can create Bugs, Issues, Requests, or unassigned tasks.
+    if (!isManager && assigneeId && assigneeId.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Only Project Managers can assign tasks to other team members. You can leave it unassigned for manager triage or assign to yourself.",
       });
     }
 
@@ -299,8 +389,45 @@ const updateIssue = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Issue not found" });
     }
 
+    // Guest users cannot update issues
+    if (await isUserGuest(userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Task modifications are not permitted.",
+      });
+    }
+
     const previousIssue = issue.toObject();
     const diff = {};
+
+    // Manager-oriented fields that employees cannot modify on root tasks
+    const managerFields = [
+      "title",
+      "description",
+      "type",
+      "status",
+      "priority",
+      "assigneeId",
+      "sprintId",
+      "estimate",
+      "dueDate",
+      "startDate",
+    ];
+
+    const isUpdatingManagerField = managerFields.some(
+      (f) => updates[f] !== undefined && String(updates[f] || "") !== String(issue[f] || "")
+    );
+
+    if (!issue.parentId && isUpdatingManagerField) {
+      const isManager = await isUserManager(userId, issue.projectId);
+      if (!isManager) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Only Project Managers can modify task details (title, description, assignee, sprint, estimate, or due date). Employees can manage subtasks, attachments, pull requests, and comments.",
+        });
+      }
+    }
 
     const mutableFields = [
       "title",
@@ -410,6 +537,13 @@ const moveIssue = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Issue not found" });
     }
 
+    if (await isUserGuest(userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Moving tasks or updating status is restricted.",
+      });
+    }
+
     let prevRank = null;
     let nextRank = null;
 
@@ -487,6 +621,25 @@ const deleteIssue = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Issue not found" });
     }
 
+    // Guest users cannot delete issues
+    if (await isUserGuest(userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Deleting tasks is restricted.",
+      });
+    }
+
+    // Root tasks can only be deleted by Project Managers
+    if (!issue.parentId) {
+      const isManager = await isUserManager(userId, issue.projectId);
+      if (!isManager) {
+        return res.status(403).json({
+          success: false,
+          message: "Only Project Managers can delete tasks.",
+        });
+      }
+    }
+
     const projectId = issue.projectId;
     const issueKey = issue.key;
 
@@ -532,6 +685,13 @@ const uploadAttachment = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Issue not found" });
     }
 
+    if (await isUserGuest(req.user.userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Uploading task attachments is restricted.",
+      });
+    }
+
     const fileUrl = `/uploads/${file.filename}`;
 
     const attachment = {
@@ -574,6 +734,13 @@ const bulkUpdateIssues = async (req, res, next) => {
   try {
     const { issueIds, updates } = req.body;
     const userId = req.user.userId;
+
+    if (await isUserGuest(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Bulk updating tasks is restricted.",
+      });
+    }
 
     if (!Array.isArray(issueIds) || issueIds.length === 0) {
       return res.status(400).json({ success: false, message: "issueIds array is required" });
@@ -627,6 +794,13 @@ const bulkDeleteIssues = async (req, res, next) => {
     const { issueIds } = req.body;
     const userId = req.user.userId;
 
+    if (await isUserGuest(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Bulk deleting tasks is restricted.",
+      });
+    }
+
     if (!Array.isArray(issueIds) || issueIds.length === 0) {
       return res.status(400).json({ success: false, message: "issueIds array is required" });
     }
@@ -656,6 +830,227 @@ const bulkDeleteIssues = async (req, res, next) => {
   }
 };
 
+/**
+ * Raise / Link a Pull Request to a task/issue (Employees or Managers)
+ */
+const raisePullRequest = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { title, url, branch = "", targetBranch = "main", notes = "" } = req.body;
+    const userId = req.user.userId;
+
+    if (!title || !title.trim() || !url || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Pull request title and URL are required",
+      });
+    }
+
+    const issue = await Issue.findById(id);
+    if (!issue) {
+      return res.status(404).json({ success: false, message: "Task/Issue not found" });
+    }
+
+    if (await isUserGuest(userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Raising pull requests is restricted to team members.",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    const newPr = {
+      title: title.trim(),
+      url: url.trim(),
+      branch: branch ? branch.trim() : "",
+      targetBranch: targetBranch ? targetBranch.trim() : "main",
+      status: "OPEN",
+      authorId: userId,
+      authorName: user?.name || "Employee",
+      notes: notes ? notes.trim() : "",
+      createdAt: new Date(),
+    };
+
+    issue.pullRequests.push(newPr);
+
+    // Jira Workflow: If task is in "To Do" or "Backlog", move to "In Progress" or "Review"
+    let statusTransitioned = false;
+    if (issue.status === "To Do" || issue.status === "Backlog") {
+      issue.status = "In Progress";
+      statusTransitioned = true;
+    }
+
+    await issue.save();
+
+    // Log Activity
+    await activityService.logActivity({
+      projectId: issue.projectId,
+      issueId: issue._id,
+      actorId: userId,
+      action: "PR_RAISED",
+      diff: {
+        prTitle: newPr.title,
+        url: newPr.url,
+        branch: newPr.branch,
+        autoMovedStatus: statusTransitioned ? "In Progress" : null,
+      },
+    });
+
+    // Notify Reporter / Assignee / Manager
+    try {
+      const notifyUserId =
+        issue.assigneeId && issue.assigneeId.toString() !== userId.toString()
+          ? issue.assigneeId
+          : issue.reporterId;
+
+      if (notifyUserId && notifyUserId.toString() !== userId.toString()) {
+        await notificationService.createNotification({
+          userId: notifyUserId,
+          type: "STATUS_CHANGE",
+          title: `Pull Request Raised on ${issue.key}`,
+          message: `${user?.name || "An employee"} raised a PR: "${newPr.title}" for ${issue.key}`,
+          payload: {
+            projectId: issue.projectId,
+            issueId: issue._id,
+            issueKey: issue.key,
+            senderId: userId,
+          },
+        });
+      }
+    } catch (notifErr) {
+      console.warn("Could not dispatch PR notification:", notifErr.message);
+    }
+
+    const populatedIssue = await Issue.findById(issue._id)
+      .populate("assigneeId", "name email avatar")
+      .populate("reporterId", "name email avatar")
+      .populate("sprintId", "name status");
+
+    socketService.emitToProject(issue.projectId, "issue.updated", populatedIssue);
+    socketService.emitToIssue(issue._id, "issue.updated", populatedIssue);
+
+    res.status(201).json({
+      success: true,
+      message: `Pull request "${newPr.title}" linked to ${issue.key}`,
+      issue: populatedIssue,
+      pullRequest: newPr,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Update Pull Request status (e.g. mark as MERGED or CLOSED)
+ */
+const updatePullRequest = async (req, res, next) => {
+  try {
+    const { id, prId } = req.params;
+    const { status, title, url, branch, targetBranch, notes } = req.body;
+    const userId = req.user.userId;
+
+    const issue = await Issue.findById(id);
+    if (!issue) {
+      return res.status(404).json({ success: false, message: "Task/Issue not found" });
+    }
+
+    if (await isUserGuest(userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Modifying pull requests is restricted.",
+      });
+    }
+
+    const pr = issue.pullRequests.id(prId);
+    if (!pr) {
+      return res.status(404).json({ success: false, message: "Pull request not found on this issue" });
+    }
+
+    const prevStatus = pr.status;
+    if (status && ["OPEN", "MERGED", "CLOSED"].includes(status)) {
+      pr.status = status;
+      if (status === "MERGED" && !pr.mergedAt) {
+        pr.mergedAt = new Date();
+      }
+    }
+    if (title) pr.title = title.trim();
+    if (url) pr.url = url.trim();
+    if (branch !== undefined) pr.branch = branch.trim();
+    if (targetBranch !== undefined) pr.targetBranch = targetBranch.trim();
+    if (notes !== undefined) pr.notes = notes.trim();
+
+    if (status === "MERGED" && prevStatus !== "MERGED") {
+      await activityService.logActivity({
+        projectId: issue.projectId,
+        issueId: issue._id,
+        actorId: userId,
+        action: "PR_MERGED",
+        diff: { prTitle: pr.title, branch: pr.branch, mergedAt: pr.mergedAt },
+      });
+    }
+
+    await issue.save();
+
+    const populatedIssue = await Issue.findById(issue._id)
+      .populate("assigneeId", "name email avatar")
+      .populate("reporterId", "name email avatar")
+      .populate("sprintId", "name status");
+
+    socketService.emitToProject(issue.projectId, "issue.updated", populatedIssue);
+    socketService.emitToIssue(issue._id, "issue.updated", populatedIssue);
+
+    res.status(200).json({
+      success: true,
+      message: `Pull request status updated to ${pr.status}`,
+      issue: populatedIssue,
+      pullRequest: pr,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Remove linked pull request
+ */
+const deletePullRequest = async (req, res, next) => {
+  try {
+    const { id, prId } = req.params;
+
+    const issue = await Issue.findById(id);
+    if (!issue) {
+      return res.status(404).json({ success: false, message: "Task/Issue not found" });
+    }
+
+    if (await isUserGuest(req.user.userId, issue.projectId)) {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Deleting pull requests is restricted.",
+      });
+    }
+
+    issue.pullRequests = issue.pullRequests.filter((p) => p._id.toString() !== prId.toString());
+    await issue.save();
+
+    const populatedIssue = await Issue.findById(issue._id)
+      .populate("assigneeId", "name email avatar")
+      .populate("reporterId", "name email avatar")
+      .populate("sprintId", "name status");
+
+    socketService.emitToProject(issue.projectId, "issue.updated", populatedIssue);
+    socketService.emitToIssue(issue._id, "issue.updated", populatedIssue);
+
+    res.status(200).json({
+      success: true,
+      message: "Pull request unlinked successfully",
+      issue: populatedIssue,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createIssue,
   getIssues,
@@ -666,4 +1061,9 @@ module.exports = {
   uploadAttachment,
   bulkUpdateIssues,
   bulkDeleteIssues,
+  raisePullRequest,
+  updatePullRequest,
+  deletePullRequest,
+  isUserManager,
+  isUserGuest,
 };

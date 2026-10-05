@@ -103,7 +103,7 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
         return (
           <span
             key={i}
-            className="inline-block px-1.5 py-0.2 rounded font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100"
+            className="inline-block px-1.5 py-0.2 rounded font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50"
           >
             {part}
           </span>
@@ -132,23 +132,23 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
               placeholder="Write a comment... (Type @ to mention someone)"
               value={newCommentBody}
               onChange={handleInputChange}
-              className="w-full p-3 text-xs rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500/50 outline-none bg-white resize-none"
+              className="w-full p-3 text-xs rounded-xl border border-gray-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500/50 outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 resize-none"
             />
 
             {/* Mention Suggestions Popover */}
             {showMentionSuggestions && filteredSuggestions.length > 0 && (
-              <div className="absolute left-3 bottom-full mb-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-20 overflow-hidden py-1 max-h-40 overflow-y-auto">
-                <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase">
+              <div className="absolute left-3 bottom-full mb-1 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 z-20 overflow-hidden py-1 max-h-40 overflow-y-auto">
+                <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 dark:text-slate-400 uppercase">
                   Mention Member
                 </div>
                 {filteredSuggestions.map((m) => (
                   <div
                     key={m.userId?._id || m.userId}
                     onClick={() => insertMention(m)}
-                    className="flex items-center space-x-2 px-3 py-1.5 hover:bg-indigo-50 cursor-pointer text-xs"
+                    className="flex items-center space-x-2 px-3 py-1.5 hover:bg-indigo-50 dark:hover:bg-slate-700 cursor-pointer text-xs"
                   >
-                    <AtSign className="w-3 h-3 text-indigo-500" />
-                    <span className="font-medium text-gray-800">
+                    <AtSign className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+                    <span className="font-medium text-gray-800 dark:text-slate-200">
                       {m.userId?.name || m.userId?.email}
                     </span>
                   </div>
@@ -158,8 +158,8 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
           </div>
 
           <div className="flex justify-between items-center">
-            <span className="text-[11px] text-gray-400">
-              Pro-tip: type <kbd className="px-1 py-0.5 rounded bg-gray-100 font-mono">@name</kbd> to notify team members
+            <span className="text-[11px] text-gray-400 dark:text-slate-400">
+              Pro-tip: type <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-slate-800 font-mono text-gray-700 dark:text-slate-300">@name</kbd> to notify team members
             </span>
             <button
               type="submit"
@@ -176,7 +176,7 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
       {/* Comments List */}
       <div className="space-y-3 pt-2">
         {comments.length === 0 ? (
-          <div className="p-4 text-center text-xs text-gray-400">No comments yet. Start the discussion!</div>
+          <div className="p-4 text-center text-xs text-gray-400 dark:text-slate-500">No comments yet. Start the discussion!</div>
         ) : (
           comments.map((c) => {
             const isAuthor = user?.userId === c.authorId?._id;
@@ -185,7 +185,7 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
             return (
               <div
                 key={c._id}
-                className="p-3 rounded-xl bg-gray-50/80 border border-gray-100 flex items-start space-x-3 group"
+                className="p-3 rounded-xl bg-gray-50/80 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-700/60 flex items-start space-x-3 group"
               >
                 <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white font-bold text-xs flex items-center justify-center shrink-0">
                   {(c.authorId?.name || c.authorId?.email || "U").charAt(0).toUpperCase()}
@@ -194,10 +194,10 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold text-gray-900">
+                      <span className="text-xs font-bold text-gray-900 dark:text-slate-100">
                         {c.authorId?.name || c.authorId?.email}
                       </span>
-                      <span className="text-[10px] text-gray-400">
+                      <span className="text-[10px] text-gray-400 dark:text-slate-400">
                         {moment(c.createdAt).fromNow()}
                       </span>
                     </div>
@@ -209,14 +209,14 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
                             setEditingCommentId(c._id);
                             setEditingBody(c.body);
                           }}
-                          className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded"
                           title="Edit"
                         >
                           <Edit className="w-3 h-3" />
                         </button>
                         <button
                           onClick={() => handleDeleteComment(c._id)}
-                          className="p-1 text-red-400 hover:text-red-600 rounded"
+                          className="p-1 text-red-400 hover:text-red-600 dark:hover:text-red-400 rounded"
                           title="Delete"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -231,13 +231,13 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
                         rows={2}
                         value={editingBody}
                         onChange={(e) => setEditingBody(e.target.value)}
-                        className="w-full p-2 text-xs rounded-lg border border-gray-300 outline-none focus:ring-1 focus:ring-indigo-500 bg-white"
+                        className="w-full p-2 text-xs rounded-lg border border-gray-300 dark:border-slate-700 outline-none focus:ring-1 focus:ring-indigo-500 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                       />
                       <div className="flex justify-end space-x-1.5">
                         <button
                           type="button"
                           onClick={() => setEditingCommentId(null)}
-                          className="px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-200 rounded-lg"
+                          className="px-2.5 py-1 text-xs text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-800 rounded-lg"
                         >
                           Cancel
                         </button>
@@ -251,7 +251,7 @@ const CommentsSection = ({ issue, comments = [], onCommentAdded, projectMembers 
                       </div>
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    <div className="text-xs text-gray-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">
                       {renderFormattedBody(c.body)}
                     </div>
                   )}

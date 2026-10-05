@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Plus, Kanban } from "lucide-react";
 
 const Board = () => {
-  const { currentProject, currentWorkspace, setIsCreateIssueOpen } = useApp();
+  const { currentProject, currentWorkspace, setIsCreateIssueOpen, isGuest } = useApp();
 
   const [board, setBoard] = useState(null);
   const [issues, setIssues] = useState([]);
@@ -167,6 +167,11 @@ const Board = () => {
 
   // Drag and Drop End Handler with Optimistic UI & Rollback
   const handleDragEnd = async (result) => {
+    if (isGuest) {
+      toast.info("Guest users have read-only board access. Moving tasks is restricted.");
+      return;
+    }
+
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -273,11 +278,11 @@ const Board = () => {
     return (
       <div className="h-full flex items-center justify-center text-center p-8">
         <div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
             <Kanban className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-1">No Project Selected</h2>
-          <p className="text-xs text-gray-500 max-w-xs mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">No Project Selected</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400 max-w-xs mb-4">
             Select an existing project or create a new project in the top navigation to view the board.
           </p>
         </div>
@@ -304,13 +309,19 @@ const Board = () => {
         </div>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setIsCreateIssueOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 shadow-xs transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Issue</span>
-          </button>
+          {!isGuest ? (
+            <button
+              onClick={() => setIsCreateIssueOpen(true)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 shadow-xs transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Issue</span>
+            </button>
+          ) : (
+            <div className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 text-xs font-semibold flex items-center space-x-1.5">
+              <span>👁️ Read-Only Board</span>
+            </div>
+          )}
         </div>
       </div>
 

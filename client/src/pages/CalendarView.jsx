@@ -205,12 +205,12 @@ const CalendarView = () => {
   };
 
   const statusColorPills = {
-    Done: "bg-emerald-50 text-emerald-700 border-emerald-200 line-through",
-    "In Progress": "bg-blue-50 text-blue-700 border-blue-200",
-    Review: "bg-purple-50 text-purple-700 border-purple-200",
-    Testing: "bg-amber-50 text-amber-700 border-amber-200",
-    "To Do": "bg-gray-100 text-gray-700 border-gray-200",
-    Backlog: "bg-gray-100 text-gray-700 border-gray-200",
+    Done: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 line-through",
+    "In Progress": "bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+    Review: "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800",
+    Testing: "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+    "To Do": "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700",
+    Backlog: "bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700",
   };
 
   const unscheduledCount = issues.filter((i) => !i.dueDate).length;

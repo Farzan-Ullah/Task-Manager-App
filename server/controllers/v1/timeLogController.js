@@ -21,6 +21,13 @@ const createTimeLog = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Issue not found" });
     }
 
+    if (req.user.role === "Guest") {
+      return res.status(403).json({
+        success: false,
+        message: "Guest users have read-and-comment access only. Logging time is restricted.",
+      });
+    }
+
     const timeLog = new TimeLog({
       issueId,
       userId,

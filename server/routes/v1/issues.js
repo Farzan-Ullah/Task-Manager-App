@@ -20,6 +20,11 @@ router.patch("/:id/move", issueCtrl.moveIssue);
 router.delete("/:id", issueCtrl.deleteIssue);
 router.post("/:id/attachments", upload.single("file"), issueCtrl.uploadAttachment);
 
+// Pull Requests (PRs) linked to tasks
+router.post("/:id/pull-requests", issueCtrl.raisePullRequest);
+router.patch("/:id/pull-requests/:prId", issueCtrl.updatePullRequest);
+router.delete("/:id/pull-requests/:prId", issueCtrl.deletePullRequest);
+
 // Nested comments route
 router.post("/:issueId/comments", commentCtrl.createComment);
 

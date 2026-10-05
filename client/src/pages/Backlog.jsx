@@ -22,7 +22,7 @@ import CompleteSprintModal from "../components/sprints/CompleteSprintModal";
 import EditSprintModal from "../components/sprints/EditSprintModal";
 
 const Backlog = () => {
-  const { currentProject, setIsCreateIssueOpen } = useApp();
+  const { currentProject, setIsCreateIssueOpen, isGuest, isManager } = useApp();
 
   const [sprints, setSprints] = useState([]);
   const [issues, setIssues] = useState([]);
@@ -204,6 +204,11 @@ const Backlog = () => {
 
   // Drag and Drop Handler
   const handleDragEnd = async (result) => {
+    if (isGuest) {
+      toast.info("Guest users have read-only backlog access. Moving tasks is restricted.");
+      return;
+    }
+
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
@@ -334,11 +339,11 @@ const Backlog = () => {
     return (
       <div className="h-full flex items-center justify-center text-center p-8">
         <div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
             <Layers className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-1">No Project Selected</h2>
-          <p className="text-xs text-gray-500 max-w-xs mb-4">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">No Project Selected</h2>
+          <p className="text-xs text-gray-500 dark:text-slate-400 max-w-xs mb-4">
             Select a project in the navigation bar to manage its backlog and sprints.
           </p>
         </div>
@@ -365,21 +370,31 @@ const Backlog = () => {
         </div>
 
         <div className="flex items-center space-x-2 self-stretch sm:self-auto">
-          <button
-            onClick={() => setIsCreateSprintOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3 py-2 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>Create Sprint</span>
-          </button>
+          {!isGuest ? (
+            <>
+              {isManager && (
+                <button
+                  onClick={() => setIsCreateSprintOpen(true)}
+                  className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3 py-2 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold shadow-2xs transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                  <span>Create Sprint</span>
+                </button>
+              )}
 
-          <button
-            onClick={() => setIsCreateIssueOpen(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Issue</span>
-          </button>
+              <button
+                onClick={() => setIsCreateIssueOpen(true)}
+                className="flex-1 sm:flex-none flex items-center justify-center space-x-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create Issue</span>
+              </button>
+            </>
+          ) : (
+            <div className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 text-xs font-semibold flex items-center space-x-1.5">
+              <span>👁️ Read-Only Backlog</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -466,6 +481,7 @@ const Backlog = () => {
                 sprint={activeSprint}
                 issues={getIssuesForContainer(activeSprint._id)}
                 availableSprints={sprints}
+                isGuest={isGuest}
                 onCompleteSprint={(s) => setCompleteSprintTarget(s)}
                 onEditSprint={(s) => setEditSprintTarget(s)}
                 onDeleteSprint={(s) => setEditSprintTarget(s)}
@@ -482,6 +498,7 @@ const Backlog = () => {
                 sprint={sprint}
                 issues={getIssuesForContainer(sprint._id)}
                 availableSprints={sprints}
+                isGuest={isGuest}
                 onStartSprint={(s) => setStartSprintTarget(s)}
                 onEditSprint={(s) => setEditSprintTarget(s)}
                 onDeleteSprint={(s) => setEditSprintTarget(s)}
@@ -496,6 +513,7 @@ const Backlog = () => {
               sprint={null}
               issues={getIssuesForContainer(null)}
               availableSprints={sprints}
+              isGuest={isGuest}
               onDeleteIssue={handleDeleteIssue}
               onMoveToSprint={handleMoveToSprint}
               onQuickCreateIssue={handleQuickCreateIssue}

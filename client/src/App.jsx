@@ -12,6 +12,7 @@ import GanttView from "./pages/GanttView";
 import Timesheets from "./pages/Timesheets";
 import Reports from "./pages/Reports";
 import Automations from "./pages/Automations";
+import WorkspaceMembers from "./pages/WorkspaceMembers";
 import Settings from "./pages/Settings";
 import Analytics from "./pages/Analytics";
 import Share from "./pages/Share";
@@ -40,6 +41,7 @@ function App() {
             <Route path="timesheets" element={<Timesheets />} />
             <Route path="reports" element={<Reports />} />
             <Route path="automations" element={<Automations />} />
+            <Route path="members" element={<WorkspaceMembers />} />
             <Route path="settings" element={<Settings />} />
             <Route path="analytics" element={<Analytics />} />
           </Route>

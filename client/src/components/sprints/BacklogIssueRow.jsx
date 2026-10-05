@@ -9,6 +9,9 @@ import {
   Clock,
   Trash2,
   CornerDownRight,
+  GitPullRequest,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../context/AppContext";
@@ -20,13 +23,60 @@ const BacklogIssueRow = ({
   onMoveToSprint,
   availableSprints = [],
 }) => {
-  const { startTimer } = useApp();
+  const { startTimer, user, currentWorkspace, currentProject, workspaceMembers = [], isGuest } = useApp();
   const [showMenu, setShowMenu] = useState(false);
+
+  const isManager = React.useMemo(() => {
+    if (!user || isGuest) return false;
+    const uid = (user.userId || user._id)?.toString();
+    if (!uid) return false;
+    if (user.role === "Admin" || user.role === "admin") return true;
+
+    if (currentWorkspace) {
+      const ownerId = (currentWorkspace.owner?._id || currentWorkspace.owner)?.toString();
+      if (ownerId && ownerId === uid) return true;
+    }
+    const wkspMember = workspaceMembers.find((m) => {
+      const mId = (m.userId?._id || m.userId || m._id)?.toString();
+      return mId === uid;
+    });
+    if (
+      wkspMember &&
+      (wkspMember.role === "Workspace Admin" ||
+        wkspMember.role === "Project Manager" ||
+        wkspMember.role === "Admin")
+    ) {
+      return true;
+    }
+
+    if (currentProject) {
+      const leadId = (currentProject.leadId?._id || currentProject.leadId)?.toString();
+      if (leadId && leadId === uid) return true;
+
+      const projMembers = currentProject.members || [];
+      const projMember = projMembers.find((m) => {
+        const mId = (m.userId?._id || m.userId || m._id)?.toString();
+        return mId === uid;
+      });
+      if (
+        projMember &&
+        (projMember.role === "Project Manager" ||
+          projMember.role === "Workspace Admin" ||
+          projMember.role === "Admin")
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [user, currentWorkspace, workspaceMembers, currentProject]);
 
   const typeIcons = {
     Task: <CheckSquare className="w-3.5 h-3.5 text-blue-500 shrink-0" />,
     Bug: <Bug className="w-3.5 h-3.5 text-red-500 shrink-0" />,
     Story: <Bookmark className="w-3.5 h-3.5 text-emerald-500 shrink-0" />,
+    Issue: <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
+    Request: <HelpCircle className="w-3.5 h-3.5 text-purple-500 shrink-0" />,
   };
 
   const priorityColors = {
@@ -56,7 +106,7 @@ const BacklogIssueRow = ({
   };
 
   return (
-    <Draggable draggableId={issue._id} index={index}>
+    <Draggable draggableId={issue._id} index={index} isDragDisabled={isGuest}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}
@@ -70,13 +120,15 @@ const BacklogIssueRow = ({
         >
           {/* Left section: drag handle + type + key + title */}
           <div className="flex items-center space-x-2.5 min-w-0 flex-1 mr-3">
-            <div
-              {...provided.dragHandleProps}
-              className="text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="w-3.5 h-3.5" />
-            </div>
+            {!isGuest && (
+              <div
+                {...provided.dragHandleProps}
+                className="text-gray-300 dark:text-slate-600 group-hover:text-gray-500 dark:group-hover:text-slate-400 cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <GripVertical className="w-3.5 h-3.5" />
+              </div>
+            )}
 
             {typeIcons[issue.type] || typeIcons.Task}
 
@@ -100,6 +152,17 @@ const BacklogIssueRow = ({
             className="flex items-center space-x-2.5 shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* PRs Pill */}
+            {issue.pullRequests && issue.pullRequests.length > 0 && (
+              <span
+                className="flex items-center space-x-1 px-1.5 py-0.5 rounded-full font-mono text-[10px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/60"
+                title={`${issue.pullRequests.length} Pull Request(s) linked`}
+              >
+                <GitPullRequest className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                <span>{issue.pullRequests.length} PR</span>
+              </span>
+            )}
+
             {/* Status Pill */}
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
@@ -150,7 +213,8 @@ const BacklogIssueRow = ({
             </div>
 
             {/* Action Menu */}
-            <div className="relative">
+            {!isGuest && (
+              <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-opacity"
@@ -171,8 +235,8 @@ const BacklogIssueRow = ({
                     Start Timer
                   </button>
 
-                  {/* Move to another sprint or backlog */}
-                  {availableSprints.length > 0 && (
+                  {/* Move to another sprint or backlog: Manager only */}
+                  {isManager && availableSprints.length > 0 && (
                     <div className="border-t border-gray-100 dark:border-slate-700 my-1 py-1">
                       <div className="px-3 py-0.5 text-[10px] font-bold text-gray-400 dark:text-slate-400 uppercase">
                         Move to:
@@ -207,21 +271,26 @@ const BacklogIssueRow = ({
                     </div>
                   )}
 
-                  <div className="border-t border-gray-100 dark:border-slate-700 my-0.5" />
-
-                  <button
-                    onClick={() => {
-                      onDelete && onDelete(issue._id);
-                      setShowMenu(false);
-                    }}
-                    className="w-full flex items-center px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400" />
-                    Delete Issue
-                  </button>
+                  {/* Delete Issue: Manager only */}
+                  {isManager && (
+                    <>
+                      <div className="border-t border-gray-100 dark:border-slate-700 my-0.5" />
+                      <button
+                        onClick={() => {
+                          onDelete && onDelete(issue._id);
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mr-2 text-red-400" />
+                        Delete Issue
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       )}

@@ -41,7 +41,7 @@ const RichTextEditor = ({
     },
     editorProps: {
       attributes: {
-        class: `focus:outline-none text-xs leading-relaxed text-gray-800 p-3.5 prose prose-xs max-w-none`,
+        class: `focus:outline-none text-xs leading-relaxed text-gray-800 dark:text-slate-100 p-3.5 prose prose-xs dark:prose-invert max-w-none`,
         style: `min-height: ${minHeight};`,
       },
     },
@@ -58,21 +58,21 @@ const RichTextEditor = ({
 
   if (readOnly) {
     return (
-      <div className="prose prose-xs max-w-none text-xs leading-relaxed text-gray-800 p-1">
+      <div className="prose prose-xs dark:prose-invert max-w-none text-xs leading-relaxed text-gray-800 dark:text-slate-100 p-1">
         <EditorContent editor={editor} />
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200/90 rounded-xl overflow-hidden bg-white focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-400 transition-all">
+    <div className="border border-gray-200/90 dark:border-slate-700/80 rounded-xl overflow-hidden bg-white dark:bg-slate-900 focus-within:ring-2 focus-within:ring-indigo-500/50 focus-within:border-indigo-400 dark:focus-within:border-indigo-500 transition-all">
       {/* Formatting Toolbar */}
-      <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-gray-50/80 border-b border-gray-200/80 text-gray-600">
+      <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-gray-50/80 dark:bg-slate-950/70 border-b border-gray-200/80 dark:border-slate-800 text-gray-600 dark:text-slate-400">
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("bold") ? "bg-indigo-100 text-indigo-700 font-bold" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("bold") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold" : ""
           }`}
           title="Bold"
         >
@@ -82,8 +82,8 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("italic") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("italic") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Italic"
         >
@@ -93,8 +93,8 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("strike") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("strike") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Strikethrough"
         >
@@ -104,21 +104,21 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleCode().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("code") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("code") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Inline Code"
         >
           <Code className="w-3.5 h-3.5" />
         </button>
 
-        <div className="w-[1px] h-4 bg-gray-300 mx-1" />
+        <div className="w-[1px] h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
 
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("heading", { level: 1 }) ? "bg-indigo-100 text-indigo-700 font-bold" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("heading", { level: 1 }) ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold" : ""
           }`}
           title="Heading 1"
         >
@@ -128,21 +128,21 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("heading", { level: 2 }) ? "bg-indigo-100 text-indigo-700 font-bold" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("heading", { level: 2 }) ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-bold" : ""
           }`}
           title="Heading 2"
         >
           <Heading2 className="w-3.5 h-3.5" />
         </button>
 
-        <div className="w-[1px] h-4 bg-gray-300 mx-1" />
+        <div className="w-[1px] h-4 bg-gray-300 dark:bg-slate-700 mx-1" />
 
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("bulletList") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("bulletList") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Bullet List"
         >
@@ -152,8 +152,8 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("orderedList") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("orderedList") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Numbered List"
         >
@@ -163,8 +163,8 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("blockquote") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("blockquote") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Quote"
         >
@@ -174,8 +174,8 @@ const RichTextEditor = ({
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 transition-colors ${
-            editor.isActive("codeBlock") ? "bg-indigo-100 text-indigo-700" : ""
+          className={`p-1.5 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors ${
+            editor.isActive("codeBlock") ? "bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300" : ""
           }`}
           title="Code Block"
         >

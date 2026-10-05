@@ -169,6 +169,19 @@ const inviteMember = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Workspace not found" });
     }
 
+    // Role check: Only Workspace Owner or Workspace Admin can invite members
+    const requesterId = req.user?.userId;
+    const isOwner = workspace.owner.toString() === requesterId?.toString();
+    const requesterMember = workspace.members.find(
+      (m) => m.userId.toString() === requesterId?.toString() && m.status === "ACTIVE"
+    );
+    if (!isOwner && requesterMember?.role !== "Workspace Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only Workspace Admins or the Workspace Owner can invite team members",
+      });
+    }
+
     const userToInvite = await User.findOne({ email: email.toLowerCase().trim() });
     if (!userToInvite) {
       return res.status(404).json({
@@ -195,13 +208,17 @@ const inviteMember = async (req, res, next) => {
       status: "ACTIVE",
     });
 
-    await workspace.save();
-
     // Update user's workspaces
     await User.findByIdAndUpdate(userToInvite._id, {
       $addToSet: { workspaces: { workspaceId: workspace._id, role } },
       ...(!userToInvite.workspace && { workspace: workspace._id }),
     });
+
+    // Automatically add to existing projects in the workspace so they appear as assignees
+    await Project.updateMany(
+      { workspaceId: workspace._id },
+      { $addToSet: { members: { userId: userToInvite._id, role } } }
+    );
 
     // Notify user
     await notificationService.createNotification({
@@ -245,6 +262,19 @@ const removeMember = async (req, res, next) => {
     const workspace = await Workspace.findById(id);
     if (!workspace) {
       return res.status(404).json({ success: false, message: "Workspace not found" });
+    }
+
+    // Role check: Only Workspace Owner or Workspace Admin can remove members
+    const requesterId = req.user?.userId;
+    const isOwner = workspace.owner.toString() === requesterId?.toString();
+    const requesterMember = workspace.members.find(
+      (m) => m.userId.toString() === requesterId?.toString() && m.status === "ACTIVE"
+    );
+    if (!isOwner && requesterMember?.role !== "Workspace Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only Workspace Admins or the Workspace Owner can remove members",
+      });
     }
 
     if (workspace.owner.toString() === userId.toString()) {
@@ -291,6 +321,19 @@ const updateMemberRole = async (req, res, next) => {
     const workspace = await Workspace.findById(id);
     if (!workspace) {
       return res.status(404).json({ success: false, message: "Workspace not found" });
+    }
+
+    // Role check: Only Workspace Owner or Workspace Admin can update member roles
+    const requesterId = req.user?.userId;
+    const isOwner = workspace.owner.toString() === requesterId?.toString();
+    const requesterMember = workspace.members.find(
+      (m) => m.userId.toString() === requesterId?.toString() && m.status === "ACTIVE"
+    );
+    if (!isOwner && requesterMember?.role !== "Workspace Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Only Workspace Admins or the Workspace Owner can update member roles",
+      });
     }
 
     const member = workspace.members.find(
@@ -350,10 +393,110 @@ const switchWorkspace = async (req, res, next) => {
   }
 };
 
+/**
+ * Get all members/employees of a workspace
+ */
+const getWorkspaceMembers = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const workspace = await Workspace.findById(id)
+      .populate("owner", "name email avatar role")
+      .populate("members.userId", "name email avatar role");
+
+    if (!workspace) {
+      return res.status(404).json({ success: false, message: "Workspace not found" });
+    }
+
+    // Also query users having this workspace to guarantee 100% coverage
+    const usersWithWksp = await User.find(
+      { $or: [{ workspace: id }, { "workspaces.workspaceId": id }] },
+      "name email avatar role createdAt"
+    );
+
+    const membersMap = new Map();
+
+    // 1. Process members from workspace.members array
+    if (workspace.members && Array.isArray(workspace.members)) {
+      for (const m of workspace.members) {
+        if (m.userId) {
+          const u = m.userId;
+          membersMap.set(u._id.toString(), {
+            _id: u._id,
+            name: u.name,
+            email: u.email,
+            avatar: u.avatar || "",
+            role: m.role || "Member",
+            status: m.status || "ACTIVE",
+            joinedAt: m.joinedAt,
+          });
+        }
+      }
+    }
+
+    // 2. Ensure owner is present
+    if (workspace.owner && !membersMap.has(workspace.owner._id.toString())) {
+      membersMap.set(workspace.owner._id.toString(), {
+        _id: workspace.owner._id,
+        name: workspace.owner.name,
+        email: workspace.owner.email,
+        avatar: workspace.owner.avatar || "",
+        role: "Workspace Admin",
+        status: "ACTIVE",
+        joinedAt: workspace.createdAt,
+      });
+    }
+
+    // 3. Merge any additional users linked via User document
+    for (const u of usersWithWksp) {
+      if (!membersMap.has(u._id.toString())) {
+        const isOwner = workspace.owner && workspace.owner._id.toString() === u._id.toString();
+        const role = isOwner ? "Workspace Admin" : (u.role === "Admin" ? "Workspace Admin" : "Member");
+        membersMap.set(u._id.toString(), {
+          _id: u._id,
+          name: u.name,
+          email: u.email,
+          avatar: u.avatar || "",
+          role,
+          status: "ACTIVE",
+          joinedAt: u.createdAt,
+        });
+
+        // Self-heal workspace document
+        workspace.members.push({
+          userId: u._id,
+          role,
+          status: "ACTIVE",
+          joinedAt: u.createdAt || new Date(),
+        });
+      }
+    }
+
+    // Save if self-healed
+    if (workspace.isModified("members")) {
+      await workspace.save();
+    }
+
+    const membersList = Array.from(membersMap.values());
+
+    res.status(200).json({
+      success: true,
+      workspaceName: workspace.name,
+      inviteCode: workspace.inviteCode,
+      owner: workspace.owner,
+      members: membersList,
+      totalCount: membersList.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createWorkspace,
   getUserWorkspaces,
   getWorkspaceById,
+  getWorkspaceMembers,
   updateWorkspace,
   inviteMember,
   removeMember,
