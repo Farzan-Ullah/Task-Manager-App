@@ -270,6 +270,133 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.trim()) {
+      return res.status(400).json({ errorMessage: "Please provide your email address" });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({ errorMessage: "No account found with this email address" });
+    }
+
+    // Generate cryptographically secure 32-byte token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Hash token for database storage
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour validity
+    await user.save();
+
+    // Construct reset link based on client origin
+    const origin = req.headers.origin || "http://localhost:5173";
+    const resetUrl = `${origin}/reset-password/${resetToken}`;
+
+    console.log(`[AUTH] Password reset requested for: ${user.email}`);
+    console.log(`[AUTH] Reset URL: ${resetUrl}`);
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset instructions have been generated. Use the link to reset your password within 1 hour.",
+      resetToken,
+      resetUrl,
+      email: user.email,
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ errorMessage: "Failed to process forgot password request" });
+  }
+};
+
+const verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) {
+      return res.status(400).json({ errorMessage: "Token is required" });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        errorMessage: "Password reset link is invalid or has expired. Please request a new one.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      valid: true,
+      email: user.email,
+      message: "Reset token is valid",
+    });
+  } catch (error) {
+    console.error("Verify reset token error:", error);
+    res.status(500).json({ errorMessage: "Error verifying reset token" });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password, confirmPassword } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ errorMessage: "Reset token is required" });
+    }
+
+    if (!password) {
+      return res.status(400).json({ errorMessage: "Please enter a new password" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ errorMessage: "Password must be at least 6 characters long" });
+    }
+
+    if (confirmPassword && password !== confirmPassword) {
+      return res.status(400).json({ errorMessage: "Passwords do not match" });
+    }
+
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        errorMessage: "Password reset link is invalid or has expired. Please request a new one.",
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    user.password = hashedPassword;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpires = null;
+    await user.save();
+
+    console.log(`[AUTH] Password successfully reset for: ${user.email}`);
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successfully! You can now log in with your new password.",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ errorMessage: "Failed to reset password" });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -278,4 +405,7 @@ module.exports = {
   addAssigneeByEmail,
   getAllAssignees,
   getAllUsers,
+  forgotPassword,
+  verifyResetToken,
+  resetPassword,
 };

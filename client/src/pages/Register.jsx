@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import api from "../utils/api";
 import { User, Lock, Mail, Shield, ArrowRight } from "lucide-react";
+import ThemeToggle from "../components/common/ThemeToggle";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -41,7 +42,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex font-sans bg-white">
+    <div className="min-h-screen flex font-sans bg-white dark:bg-slate-950">
       {/* Left Section - Hero/Visuals */}
       <div className="hidden lg:flex lg:w-5/12 relative overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-700 to-purple-800 items-center justify-center">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
@@ -63,7 +64,12 @@ const Register = () => {
       </div>
 
       {/* Right Section - Form */}
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 xl:px-24 bg-white relative">
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 xl:px-24 bg-white dark:bg-slate-950 relative">
+        {/* Top Floating Controls */}
+        <div className="absolute top-6 right-6 z-20">
+          <ThemeToggle variant="icon" />
+        </div>
+
         <div className="absolute top-6 left-6 lg:hidden">
           <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform -rotate-6">
             <Shield className="text-white h-6 w-6 transform rotate-6" />
@@ -72,20 +78,20 @@ const Register = () => {
         
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
           <div className="mb-10 text-center lg:text-left mt-8 lg:mt-0">
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
               Create an account
             </h2>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
               Get started by filling out your details below.
             </p>
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Full Name</label>
               <div className="relative rounded-xl shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
+                  <User className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   name="name"
@@ -93,17 +99,17 @@ const Register = () => {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-12 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-12 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                   placeholder="John Doe"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email address</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Email address</label>
               <div className="relative rounded-xl shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   name="email"
@@ -111,24 +117,24 @@ const Register = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-12 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-12 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Invite Code (Optional)</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Invite Code (Optional)</label>
               <div className="relative rounded-xl shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Shield className="h-5 w-5 text-gray-400" />
+                  <Shield className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   name="inviteCode"
                   type="text"
                   value={formData.inviteCode}
                   onChange={handleChange}
-                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-12 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-12 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                   placeholder="Enter invite code to join a workspace"
                 />
               </div>
@@ -136,10 +142,10 @@ const Register = () => {
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Password</label>
                 <div className="relative rounded-xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                   </div>
                   <input
                     name="password"
@@ -147,17 +153,17 @@ const Register = () => {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-12 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                    className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-12 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                     placeholder="••••••••"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Confirm</label>
                 <div className="relative rounded-xl shadow-sm">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
+                    <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                   </div>
                   <input
                     name="confirmPassword"
@@ -165,7 +171,7 @@ const Register = () => {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-12 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                    className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-12 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                     placeholder="••••••••"
                   />
                 </div>
@@ -175,7 +181,7 @@ const Register = () => {
             <div className="pt-4">
               <button
                 type="submit"
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-indigo-200 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 items-center group"
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 items-center group cursor-pointer"
               >
                 Sign up
                 <ArrowRight className="ml-2 h-5 w-5 transform group-hover:translate-x-1 transition-transform" />
@@ -184,9 +190,9 @@ const Register = () => {
           </form>
 
           <div className="mt-8 text-center">
-            <p className="text-sm font-medium text-gray-600">
+            <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Already have an account?{" "}
-              <Link to="/login" className="font-bold text-indigo-600 hover:text-indigo-500 transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-indigo-600 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:origin-right hover:after:origin-left">
+              <Link to="/login" className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-indigo-600 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:origin-right hover:after:origin-left">
                 Log in here
               </Link>
             </p>

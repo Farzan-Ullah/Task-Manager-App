@@ -4,13 +4,17 @@ import { toast } from "sonner";
 import api from "../utils/api";
 import Cookies from "js-cookie";
 import { Mail, Lock, Shield, ArrowRight } from "lucide-react";
+import ThemeToggle from "../components/common/ThemeToggle";
 
 const Login = () => {
   const navigate = useNavigate();
+  const rememberedEmail = localStorage.getItem("promanage_remember_email") || "";
   const [formData, setFormData] = useState({
-    email: "",
+    email: rememberedEmail,
     password: "",
   });
+  const [rememberMe, setRememberMe] = useState(Boolean(rememberedEmail));
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -18,26 +22,42 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       const res = await api.post("/user/login", formData);
       if (res.data.success) {
-        sessionStorage.setItem("token", res.data.token);
-        sessionStorage.setItem("user", JSON.stringify({
+        const userData = {
           name: res.data.name,
           email: res.data.email,
           userId: res.data.userId,
           role: res.data.role || "Employee",
-        }));
+        };
+
+        if (rememberMe) {
+          localStorage.setItem("promanage_remember_email", formData.email);
+          localStorage.setItem("token", res.data.token);
+          localStorage.setItem("user", JSON.stringify(userData));
+        } else {
+          localStorage.removeItem("promanage_remember_email");
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+        }
+
+        sessionStorage.setItem("token", res.data.token);
+        sessionStorage.setItem("user", JSON.stringify(userData));
+
         toast.success("Welcome back!");
         navigate("/dash/board");
       }
     } catch (error) {
       toast.error(error.response?.data?.errorMessage || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex font-sans bg-white">
+    <div className="min-h-screen flex font-sans bg-white dark:bg-slate-950">
       {/* Left Section - Hero/Visuals */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-indigo-900 via-indigo-700 to-purple-800 items-center justify-center">
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
@@ -59,7 +79,12 @@ const Login = () => {
       </div>
 
       {/* Right Section - Form */}
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 xl:px-24 bg-white relative">
+      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 xl:px-24 bg-white dark:bg-slate-950 relative">
+        {/* Top Floating Controls */}
+        <div className="absolute top-6 right-6 z-20">
+          <ThemeToggle variant="icon" />
+        </div>
+
         <div className="absolute top-6 left-6 lg:hidden">
           <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform -rotate-6">
             <Shield className="text-white h-6 w-6 transform rotate-6" />
@@ -68,20 +93,20 @@ const Login = () => {
         
         <div className="mx-auto w-full max-w-sm lg:max-w-md">
           <div className="mb-10 text-center lg:text-left mt-8 lg:mt-0">
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
               Welcome back
             </h2>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
               Please enter your details to sign in.
             </p>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email address</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Email address</label>
               <div className="relative rounded-xl shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   name="email"
@@ -89,17 +114,17 @@ const Login = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-14 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-14 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                   placeholder="you@example.com"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-2">Password</label>
               <div className="relative rounded-xl shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
+                  <Lock className="h-5 w-5 text-gray-400 dark:text-slate-500" />
                 </div>
                 <input
                   name="password"
@@ -107,7 +132,7 @@ const Login = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 rounded-xl h-14 bg-gray-50 outline-none transition-all focus:bg-white hover:bg-gray-100"
+                  className="focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-11 sm:text-sm border-gray-200 dark:border-slate-800 rounded-xl h-14 bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 placeholder-gray-400 dark:placeholder-slate-500 outline-none transition-all focus:bg-white dark:focus:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-850"
                   placeholder="••••••••"
                 />
               </div>
@@ -119,34 +144,40 @@ const Login = () => {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer transition-colors"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-slate-700 rounded cursor-pointer transition-colors"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm font-medium text-gray-700 cursor-pointer">
+                <label htmlFor="remember-me" className="ml-2 block text-sm font-medium text-gray-700 dark:text-slate-300 cursor-pointer">
                   Remember me
                 </label>
               </div>
               <div className="text-sm">
-                <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-500 transition-colors">
+                <Link
+                  to="/forgot-password"
+                  className="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors"
+                >
                   Forgot password?
-                </a>
+                </Link>
               </div>
             </div>
 
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-indigo-200 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 items-center group"
+                disabled={loading}
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:-translate-y-0.5 items-center group cursor-pointer disabled:opacity-50"
               >
-                Sign in
+                {loading ? "Signing in..." : "Sign in"}
                 <ArrowRight className="ml-2 h-5 w-5 transform group-hover:translate-x-1 transition-transform" />
               </button>
             </div>
           </form>
 
           <div className="mt-10 text-center">
-            <p className="text-sm font-medium text-gray-600">
+            <p className="text-sm font-medium text-gray-600 dark:text-slate-400">
               Don't have an account?{" "}
-              <Link to="/" className="font-bold text-indigo-600 hover:text-indigo-500 transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-indigo-600 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:origin-right hover:after:origin-left">
+              <Link to="/" className="font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-indigo-600 after:scale-x-0 hover:after:scale-x-100 after:transition-transform after:origin-right hover:after:origin-left">
                 Sign up for free
               </Link>
             </p>

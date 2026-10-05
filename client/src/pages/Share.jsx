@@ -42,10 +42,10 @@ const Share = () => {
         <div className="mb-6">
           <div className="flex items-center text-sm font-medium text-gray-700 mb-4">
             <CheckSquare className="w-5 h-5 mr-2 text-indigo-600" />
-            Checklist ({todo.tasks.filter(t => t.completed).length}/{todo.tasks.length})
+            Checklist ({(todo.tasks || []).filter((t) => t.completed).length}/{(todo.tasks || []).length})
           </div>
           <div className="space-y-3">
-            {todo.tasks.map((task) => (
+            {(todo.tasks || []).map((task) => (
               <div key={task._id} className="flex items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
                 <div className={`w-5 h-5 rounded flex items-center justify-center mr-3 ${
                   task.completed ? "bg-indigo-600 text-white" : "bg-white border border-gray-300"

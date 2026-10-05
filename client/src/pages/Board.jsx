@@ -1,271 +1,370 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { DragDropContext } from "@hello-pangea/dnd";
+import { useApp } from "../context/AppContext";
+import KanbanColumn from "../components/board/KanbanColumn";
+import BoardFilterBar from "../components/board/BoardFilterBar";
+import ColumnConfigModal from "../components/board/ColumnConfigModal";
+import { getSocket } from "../utils/socket";
 import api from "../utils/api";
 import { toast } from "sonner";
-import { Plus, MoreVertical, Calendar as CalendarIcon, CheckSquare, ChevronDown, ChevronUp } from "lucide-react";
-import moment from "moment";
-import TaskModal from "../components/TaskModal";
+import { Plus, Kanban } from "lucide-react";
 
 const Board = () => {
-  const [todos, setTodos] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [filter, setFilter] = useState("week");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [expandedTodos, setExpandedTodos] = useState({});
-  const [activeMenu, setActiveMenu] = useState(null);
-  const [editData, setEditData] = useState(null);
+  const { currentProject, currentWorkspace, setIsCreateIssueOpen } = useApp();
 
-  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-  const isAdmin = user.role === "Admin";
+  const [board, setBoard] = useState(null);
+  const [issues, setIssues] = useState([]);
+  const [sprints, setSprints] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchTodos = async () => {
-    try {
-      const res = await api.get(`/todos/filter/${filter}`);
-      if (res.data.success) {
-        setTodos(res.data.todos || []);
-      }
-    } catch (error) {
-      toast.error("Failed to fetch tasks");
+  // Filters State
+  const [filters, setFilters] = useState({
+    sprintId: "all",
+    assigneeId: "all",
+    priority: "all",
+    type: "all",
+    search: "",
+  });
+
+  const [isColumnConfigOpen, setIsColumnConfigOpen] = useState(false);
+
+  // Fetch Board Configuration & Issues
+  const fetchBoardData = useCallback(async () => {
+    if (!currentProject?._id) {
+      setLoading(false);
+      return;
     }
-  };
 
-  const fetchUsers = async () => {
-    if (!isAdmin) return;
     try {
-      const res = await api.get("/user/allUsers");
-      if (res.data.success) {
-        setUsers(res.data.users);
+      setLoading(true);
+      const sprintQuery = filters.sprintId !== "all" ? `?sprintId=${filters.sprintId}` : "";
+      const [boardRes, sprintsRes] = await Promise.all([
+        api.get(`/v1/projects/${currentProject._id}/board${sprintQuery}`),
+        api.get(`/v1/sprints?projectId=${currentProject._id}`),
+      ]);
+
+      if (boardRes.data.success) {
+        setBoard(boardRes.data.board);
+        setIssues(boardRes.data.issues || []);
       }
-    } catch (error) {
-      console.error(error);
+
+      if (sprintsRes.data.success) {
+        setSprints(sprintsRes.data.sprints || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch board data:", err);
+      toast.error("Failed to load board");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [currentProject?._id, filters.sprintId]);
 
   useEffect(() => {
-    fetchTodos();
-  }, [filter]);
+    fetchBoardData();
+  }, [fetchBoardData]);
 
+  // Real-time Socket.IO Listeners
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (!currentProject?._id) return;
 
-  const columns = ["BACKLOG", "TO-DO", "PROGRESS", "DONE"];
+    const socket = getSocket();
 
-  const getFilteredTodos = (label) => {
-    return todos.filter((todo) => todo.label === label);
-  };
-
-  const toggleExpand = (todoId) => {
-    setExpandedTodos((prev) => ({
-      ...prev,
-      [todoId]: !prev[todoId],
-    }));
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      const res = await api.delete(`/todos/delete/${id}`);
-      if (res.data.success) {
-        toast.success("Task deleted");
-        fetchTodos();
+    const handleIssueCreated = (newIssue) => {
+      if (newIssue.projectId === currentProject._id) {
+        setIssues((prev) => {
+          if (prev.some((i) => i._id === newIssue._id)) return prev;
+          return [...prev, newIssue];
+        });
       }
-    } catch (error) {
-      toast.error("Failed to delete task");
+    };
+
+    const handleIssueMoved = (movedIssue) => {
+      if (movedIssue.projectId === currentProject._id) {
+        setIssues((prev) =>
+          prev.map((i) => (i._id === movedIssue._id ? { ...i, ...movedIssue } : i))
+        );
+      }
+    };
+
+    const handleIssueUpdated = (updatedIssue) => {
+      if (updatedIssue.projectId === currentProject._id) {
+        setIssues((prev) =>
+          prev.map((i) => (i._id === updatedIssue._id ? { ...i, ...updatedIssue } : i))
+        );
+      }
+    };
+
+    const handleIssueDeleted = ({ issueId }) => {
+      setIssues((prev) => prev.filter((i) => i._id !== issueId));
+    };
+
+    const handleBoardColumnsUpdated = (updatedBoard) => {
+      setBoard(updatedBoard);
+    };
+
+    socket.on("issue.created", handleIssueCreated);
+    socket.on("issue.moved", handleIssueMoved);
+    socket.on("issue.updated", handleIssueUpdated);
+    socket.on("issue.deleted", handleIssueDeleted);
+    socket.on("board.columns.updated", handleBoardColumnsUpdated);
+
+    // Global custom event listener from Create modal
+    const handleGlobalCreate = (e) => {
+      if (e.detail?.projectId === currentProject._id) {
+        handleIssueCreated(e.detail);
+      }
+    };
+    window.addEventListener("issue-created-global", handleGlobalCreate);
+
+    return () => {
+      socket.off("issue.created", handleIssueCreated);
+      socket.off("issue.moved", handleIssueMoved);
+      socket.off("issue.updated", handleIssueUpdated);
+      socket.off("issue.deleted", handleIssueDeleted);
+      socket.off("board.columns.updated", handleBoardColumnsUpdated);
+      window.removeEventListener("issue-created-global", handleGlobalCreate);
+    };
+  }, [currentProject?._id]);
+
+  // Filter Issues
+  const filteredIssues = useMemo(() => {
+    return issues.filter((iss) => {
+      if (filters.assigneeId === "unassigned" && iss.assigneeId) return false;
+      if (
+        filters.assigneeId !== "all" &&
+        filters.assigneeId !== "unassigned" &&
+        iss.assigneeId?._id !== filters.assigneeId &&
+        iss.assigneeId !== filters.assigneeId
+      ) {
+        return false;
+      }
+      if (filters.priority !== "all" && iss.priority !== filters.priority) return false;
+      if (filters.type !== "all" && iss.type !== filters.type) return false;
+      if (filters.search) {
+        const query = filters.search.toLowerCase();
+        const matchesKey = (iss.key || "").toLowerCase().includes(query);
+        const matchesTitle = (iss.title || "").toLowerCase().includes(query);
+        if (!matchesKey && !matchesTitle) return false;
+      }
+      return true;
+    });
+  }, [issues, filters]);
+
+  // Group Issues by Column Status Map
+  const issuesByColumn = useMemo(() => {
+    const map = {};
+    if (!board?.columns) return map;
+
+    board.columns.forEach((col) => {
+      const statusKey = col.statusMap || col.name;
+      map[statusKey] = filteredIssues
+        .filter((i) => (i.status || "To Do").toLowerCase() === statusKey.toLowerCase())
+        .sort((a, b) => (a.rank < b.rank ? -1 : 1));
+    });
+
+    return map;
+  }, [board, filteredIssues]);
+
+  // Drag and Drop End Handler with Optimistic UI & Rollback
+  const handleDragEnd = async (result) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
     }
-    setActiveMenu(null);
+
+    const sourceStatus = source.droppableId;
+    const destStatus = destination.droppableId;
+
+    // Snapshot previous issues for rollback on failure
+    const previousIssuesSnapshot = [...issues];
+
+    // Find dragged issue
+    const draggedIssue = issues.find((i) => i._id === draggableId);
+    if (!draggedIssue) return;
+
+    // Get ordered cards in destination column
+    const currentDestCards = [...(issuesByColumn[destStatus] || [])].filter(
+      (i) => i._id !== draggableId
+    );
+
+    // Compute previous and next issue IDs for LexoRank calculation
+    const prevIssue = destination.index > 0 ? currentDestCards[destination.index - 1] : null;
+    const nextIssue =
+      destination.index < currentDestCards.length
+        ? currentDestCards[destination.index]
+        : null;
+
+    // Optimistically update local state immediately
+    setIssues((prev) => {
+      return prev.map((item) => {
+        if (item._id === draggableId) {
+          return {
+            ...item,
+            status: destStatus,
+          };
+        }
+        return item;
+      });
+    });
+
+    // Synchronize with server
+    try {
+      const res = await api.patch(`/v1/issues/${draggableId}/move`, {
+        status: destStatus,
+        prevIssueId: prevIssue?._id || null,
+        nextIssueId: nextIssue?._id || null,
+      });
+
+      if (res.data.success && res.data.issue) {
+        // Update local issue with verified server rank
+        setIssues((prev) =>
+          prev.map((i) => (i._id === draggableId ? res.data.issue : i))
+        );
+      }
+    } catch (err) {
+      console.error("Move sync failed, reverting optimistic UI:", err);
+      // Revert state
+      setIssues(previousIssuesSnapshot);
+      toast.error("Failed to move issue. Reverted.");
+    }
   };
 
-  const handleChangeLabel = async (id, label) => {
+  // Issue Action Handlers
+  const handleDeleteIssue = async (issueId) => {
+    if (!confirm("Are you sure you want to delete this issue?")) return;
     try {
-      const res = await api.put(`/todos/label/${id}`, { label });
+      const res = await api.delete(`/v1/issues/${issueId}`);
       if (res.data.success) {
-        fetchTodos();
+        toast.success("Issue deleted");
+        setIssues((prev) => prev.filter((i) => i._id !== issueId));
       }
-    } catch (error) {
-      toast.error("Failed to move task");
+    } catch {
+      toast.error("Failed to delete issue");
     }
   };
 
-  const handleToggleTask = async (todo, taskIndex) => {
-    const newTasks = [...todo.tasks];
-    newTasks[taskIndex].completed = !newTasks[taskIndex].completed;
-    try {
-      const res = await api.put(`/todos/checkupdate/${todo._id}`, { tasks: newTasks });
-      if (res.data.success) {
-        fetchTodos();
-      }
-    } catch (error) {
-      toast.error("Failed to update checklist");
+  const handleSelectIssue = (issue) => {
+    const targetId = typeof issue === "object" ? (issue?._id || issue?.id) : issue;
+    if (targetId && targetId !== "[object Object]") {
+      window.dispatchEvent(new CustomEvent("open-issue-detail", { detail: { issueId: targetId } }));
     }
   };
+
+  const handleFilterChange = (field, value) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleClearFilters = () => {
+    setFilters({
+      sprintId: "all",
+      assigneeId: "all",
+      priority: "all",
+      type: "all",
+      search: "",
+    });
+  };
+
+  if (!currentProject) {
+    return (
+      <div className="h-full flex items-center justify-center text-center p-8">
+        <div>
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-3">
+            <Kanban className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">No Project Selected</h2>
+          <p className="text-xs text-gray-500 max-w-xs mb-4">
+            Select an existing project or create a new project in the top navigation to view the board.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+    <div className="h-full flex flex-col min-w-0">
+      {/* Board Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome, {user.name}!</h1>
-          <p className="text-sm text-gray-500">{moment().format("Do MMM, YYYY")}</p>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 tracking-tight">
+              {currentProject.name} Board
+            </h1>
+            <span className="px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800">
+              {currentProject.key}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+            {filteredIssues.length} issue{filteredIssues.length !== 1 ? "s" : ""} across {board?.columns?.length || 0} columns
+          </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center space-x-4">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="border-gray-300 rounded-xl py-2 pl-3 pr-10 text-sm focus:ring-indigo-500 focus:border-indigo-500 outline-none shadow-sm"
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setIsCreateIssueOpen(true)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 shadow-xs transition-colors"
           >
-            <option value="day">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-          </select>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Issue</span>
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-x-auto">
-        <div className="flex space-x-6 min-w-max h-full pb-4">
-          {columns.map((column) => (
-            <div key={column} className="w-80 bg-gray-100 rounded-2xl flex flex-col max-h-full">
-              <div className="p-4 flex justify-between items-center border-b border-gray-200">
-                <h3 className="font-semibold text-gray-700">{column.replace("-", " ")}</h3>
-                <div className="flex space-x-2">
-                  {column === "TO-DO" && isAdmin && (
-                    <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="p-1 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4 text-gray-600" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-3 flex-1 overflow-y-auto space-y-3">
-                {getFilteredTodos(column).map((todo) => (
-                  <div key={todo._id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow group relative">
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                        todo.priority === "HIGH" ? "bg-red-100 text-red-700" :
-                        todo.priority === "MODERATE" ? "bg-blue-100 text-blue-700" :
-                        "bg-green-100 text-green-700"
-                      }`}>
-                        {todo.priority} PRIORITY
-                      </span>
-                      {isAdmin && (
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveMenu(activeMenu === todo._id ? null : todo._id)}
-                            className="p-1 hover:bg-gray-100 rounded"
-                          >
-                            <MoreVertical className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                          </button>
-                          {activeMenu === todo._id && (
-                            <div className="absolute right-0 mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 z-10 py-1">
-                              <button
-                                onClick={() => {
-                                  setEditData(todo);
-                                  setIsModalOpen(true);
-                                  setActiveMenu(null);
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDelete(todo._id)}
-                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                              >
-                                Delete
-                              </button>
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(`${window.location.origin}/share/${todo._id}`);
-                                  toast.success("Link copied!");
-                                  setActiveMenu(null);
-                                }}
-                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                              >
-                                Share Link
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <h4 className="font-medium text-gray-900 mb-3 text-lg leading-snug">{todo.title}</h4>
-                    
-                    <div className="mb-4">
-                      <button 
-                        onClick={() => toggleExpand(todo._id)}
-                        className="flex items-center text-sm text-gray-600 hover:text-gray-900 w-full"
-                      >
-                        <CheckSquare className="w-4 h-4 mr-2" />
-                        Checklist ({todo.tasks.filter(t => t.completed).length}/{todo.tasks.length})
-                        <div className="ml-auto bg-gray-100 p-1 rounded">
-                          {expandedTodos[todo._id] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        </div>
-                      </button>
-                      
-                      {expandedTodos[todo._id] && (
-                        <div className="mt-3 space-y-2">
-                          {todo.tasks.map((task, index) => (
-                            <div key={task._id || index} className="flex items-start bg-gray-50 p-2 rounded-lg border border-gray-100">
-                              <input 
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() => handleToggleTask(todo, index)}
-                                className="mt-1 mr-2 text-indigo-600 focus:ring-indigo-500 rounded cursor-pointer"
-                              />
-                              <span className={`text-sm ${task.completed ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                {task.title}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between items-center mt-4">
-                      <div className="flex flex-wrap gap-2">
-                        {columns.filter(c => c !== column).map(c => (
-                          <button
-                            key={c}
-                            onClick={() => handleChangeLabel(todo._id, c)}
-                            className="text-[10px] font-medium px-2 py-1 bg-gray-50 hover:bg-gray-200 text-gray-600 rounded-lg transition-colors"
-                          >
-                            {c}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
-                      <div className="flex space-x-2">
-                        {todo.assignee && typeof todo.assignee === 'object' && (todo.assignee.name || todo.assignee.email) && (
-                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold" title={todo.assignee.name || todo.assignee.email}>
-                            {(todo.assignee.name || todo.assignee.email).charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      {todo.date && (
-                        <div className="flex items-center text-xs font-medium text-gray-500 bg-red-50 text-red-600 px-2 py-1 rounded-md">
-                          <CalendarIcon className="w-3 h-3 mr-1" />
-                          {moment(todo.date).format("MMM Do")}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <TaskModal
-        isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); setEditData(null); }}
-        fetchTodos={fetchTodos}
-        users={users}
-        isAdmin={isAdmin}
-        editData={editData}
+      {/* Filter Bar */}
+      <BoardFilterBar
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onClearFilters={handleClearFilters}
+        members={currentProject.members || []}
+        sprints={sprints}
+        onOpenColumnConfig={() => setIsColumnConfigOpen(true)}
       />
+
+      {/* Drag and Drop Canvas */}
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center text-xs text-gray-400">
+          Loading Kanban Board...
+        </div>
+      ) : (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
+            <div className="flex space-x-4 min-w-max h-full">
+              {board?.columns?.map((col) => {
+                const statusKey = col.statusMap || col.name;
+                const columnIssues = issuesByColumn[statusKey] || [];
+
+                return (
+                  <KanbanColumn
+                    key={col.id || col.name}
+                    column={col}
+                    issues={columnIssues}
+                    onAddIssue={(status) => {
+                      setIsCreateIssueOpen(true);
+                    }}
+                    onDeleteIssue={handleDeleteIssue}
+                    onEditIssue={handleSelectIssue}
+                    onSelectIssue={handleSelectIssue}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        </DragDropContext>
+      )}
+
+      {/* Column & WIP Configuration Modal */}
+      {board && (
+        <ColumnConfigModal
+          isOpen={isColumnConfigOpen}
+          onClose={() => setIsColumnConfigOpen(false)}
+          board={board}
+          onColumnsUpdated={(updatedBoard) => setBoard(updatedBoard)}
+        />
+      )}
     </div>
   );
 };
