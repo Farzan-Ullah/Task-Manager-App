@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import api from "../utils/api";
 import Cookies from "js-cookie";
 import { Mail, Lock, Shield, ArrowRight } from "lucide-react";
+import ThemeToggle from "../components/common/ThemeToggle";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -79,6 +80,11 @@ const Login = () => {
 
       {/* Right Section - Form */}
       <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-20 xl:px-24 bg-white dark:bg-slate-950 relative">
+        {/* Top Header Theme Switcher */}
+        <div className="absolute top-6 right-6 z-20">
+          <ThemeToggle />
+        </div>
+
         <div className="absolute top-6 left-6 lg:hidden">
           <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg transform -rotate-6">
             <Shield className="text-white h-6 w-6 transform rotate-6" />
