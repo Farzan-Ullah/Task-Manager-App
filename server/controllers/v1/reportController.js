@@ -19,15 +19,25 @@ const getBurndown = async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Sprint not found" });
     }
 
-    const issues = await Issue.find({ sprintId }).select(
-      "estimate status updatedAt createdAt"
-    );
+    const issues = await Issue.find({ sprintId })
+      .select("key title estimate status updatedAt createdAt priority assigneeId")
+      .populate("assigneeId", "name email avatar");
+
+    const totalIssues = issues.length;
+    const completedIssues = issues.filter((i) => i.status === "Done").length;
+    const remainingIssues = totalIssues - completedIssues;
+    const issueCompletionPercentage =
+      totalIssues > 0 ? Math.round((completedIssues / totalIssues) * 100) : 0;
 
     const totalCommittedPoints = issues.reduce((acc, i) => acc + (i.estimate || 0), 0);
     const completedPoints = issues
       .filter((i) => i.status === "Done")
       .reduce((acc, i) => acc + (i.estimate || 0), 0);
-    const remainingPoints = totalCommittedPoints - completedPoints;
+    const remainingPoints = Math.max(0, totalCommittedPoints - completedPoints);
+    const pointsCompletionPercentage =
+      totalCommittedPoints > 0
+        ? Math.round((completedPoints / totalCommittedPoints) * 100)
+        : 0;
 
     // Timeline calculation
     const start = sprint.startDate ? moment(sprint.startDate) : moment(sprint.createdAt);
@@ -35,20 +45,24 @@ const getBurndown = async (req, res, next) => {
     const totalDays = Math.max(1, end.diff(start, "days"));
 
     const timeline = [];
-    const idealStep = totalCommittedPoints / totalDays;
+    const idealStepPoints = totalCommittedPoints / totalDays;
+    const idealStepIssues = totalIssues / totalDays;
 
     for (let d = 0; d <= totalDays; d++) {
       const currentDay = moment(start).add(d, "days");
       const dateStr = currentDay.format("MMM DD");
 
-      // Ideal points line
-      const ideal = Math.max(0, Math.round((totalCommittedPoints - d * idealStep) * 10) / 10);
+      // Ideal points & issues
+      const idealPoints = Math.max(0, Math.round((totalCommittedPoints - d * idealStepPoints) * 10) / 10);
+      const idealIssues = Math.max(0, Math.round((totalIssues - d * idealStepIssues) * 10) / 10);
 
-      // Actual points remaining on this day
-      let actual = null;
+      // Actual points & issues remaining on this day
+      let actualPoints = null;
+      let actualIssues = null;
+
       if (currentDay.isSameOrBefore(moment(), "day")) {
         // Calculate points completed after currentDay
-        const doneAfterDay = issues
+        const donePointsAfterDay = issues
           .filter(
             (i) =>
               i.status === "Done" &&
@@ -61,13 +75,26 @@ const getBurndown = async (req, res, next) => {
           .filter((i) => i.status !== "Done")
           .reduce((acc, i) => acc + (i.estimate || 0), 0);
 
-        actual = openPoints + doneAfterDay;
+        actualPoints = openPoints + donePointsAfterDay;
+
+        // Calculate issues completed after currentDay
+        const doneIssuesAfterDay = issues.filter(
+          (i) =>
+            i.status === "Done" &&
+            i.updatedAt &&
+            moment(i.updatedAt).isAfter(currentDay, "day")
+        ).length;
+
+        const openIssues = issues.filter((i) => i.status !== "Done").length;
+        actualIssues = openIssues + doneIssuesAfterDay;
       }
 
       timeline.push({
         day: dateStr,
-        ideal,
-        actual,
+        ideal: idealPoints,
+        actual: actualPoints,
+        idealIssues,
+        actualIssues,
       });
     }
 
@@ -77,17 +104,30 @@ const getBurndown = async (req, res, next) => {
         _id: sprint._id,
         name: sprint.name,
         status: sprint.status,
+        startDate: sprint.startDate,
+        endDate: sprint.endDate,
       },
       metrics: {
         totalCommittedPoints,
         completedPoints,
         remainingPoints,
-        completionPercentage:
-          totalCommittedPoints > 0
-            ? Math.round((completedPoints / totalCommittedPoints) * 100)
-            : 0,
+        completionPercentage: pointsCompletionPercentage,
+        totalIssues,
+        completedIssues,
+        remainingIssues,
+        issueCompletionPercentage,
+        hasEstimates: totalCommittedPoints > 0,
       },
       timeline,
+      issues: issues.map((i) => ({
+        _id: i._id,
+        key: i.key,
+        title: i.title,
+        status: i.status,
+        estimate: i.estimate || 0,
+        priority: i.priority,
+        assignee: i.assigneeId,
+      })),
     });
   } catch (error) {
     next(error);
@@ -118,19 +158,27 @@ const getVelocity = async (req, res, next) => {
           .filter((i) => i.status === "Done")
           .reduce((acc, i) => acc + (i.estimate || 0), 0);
 
+        const totalIssues = issues.length;
+        const completedIssues = issues.filter((i) => i.status === "Done").length;
+
         return {
           sprintId: s._id,
           name: s.name,
           status: s.status,
           committed,
           completed,
+          committedIssues: totalIssues,
+          completedIssues,
         };
       })
     );
 
+    const hasEstimates = velocityData.some((v) => v.committed > 0);
+
     res.status(200).json({
       success: true,
       velocity: velocityData,
+      hasEstimates,
     });
   } catch (error) {
     next(error);

@@ -23,6 +23,16 @@ function requireWorkspaceRole(allowedRoles = ["Workspace Admin", "Project Manage
         req.query.workspaceId ||
         req.user.workspaceId;
 
+      // System Admin superuser access
+      if (req.user?.role === "Admin") {
+        req.userWorkspaceRole = "Workspace Admin";
+        if (workspaceId) {
+          workspace = await Workspace.findById(workspaceId);
+          req.workspace = workspace;
+        }
+        return next();
+      }
+
       let workspace = null;
       if (workspaceId) {
         workspace = await Workspace.findById(workspaceId);
@@ -102,6 +112,16 @@ function requireProjectRole(allowedRoles = ["Project Manager", "Member"]) {
 
       if (projectId) {
         project = await Project.findById(projectId);
+      } else if (req.query.sprintId || req.body.sprintId) {
+        const sprint = await Sprint.findById(req.query.sprintId || req.body.sprintId);
+        if (sprint) {
+          project = await Project.findById(sprint.projectId);
+        }
+      } else if (req.query.issueId || req.body.issueId) {
+        const issue = await Issue.findById(req.query.issueId || req.body.issueId);
+        if (issue) {
+          project = await Project.findById(issue.projectId);
+        }
       } else if (req.params.id) {
         // Try finding project directly
         project = await Project.findById(req.params.id);
@@ -130,6 +150,16 @@ function requireProjectRole(allowedRoles = ["Project Manager", "Member"]) {
             }
           }
         }
+      }
+
+      // System Admin superuser access
+      if (req.user?.role === "Admin") {
+        req.userProjectRole = "Project Manager";
+        if (project) {
+          req.project = project;
+          req.workspace = await Workspace.findById(project.workspaceId);
+        }
+        return next();
       }
 
       if (!project) {
