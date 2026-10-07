@@ -231,6 +231,7 @@ All requests must supply the header: `Authorization: Bearer <JWT_TOKEN>`.
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/v1/auth/register` | Public | Register new user account with initial workspace |
 | `POST` | `/api/v1/auth/login` | Public | Authenticate credentials and return JWT & cookie |
+| `GET` | `/api/v1/auth/me` | Authenticated | Fetch current authenticated user profile & roles (also `/api/user/me`) |
 | `POST` | `/api/v1/auth/logout` | Public | Invalidate authentication session cookie |
 | `POST` | `/api/v1/auth/forgot-password`| Public | Generate and email password reset token |
 | `POST` | `/api/v1/auth/reset-password/:token`| Public | Reset user password via verification token |

@@ -17,10 +17,13 @@ async function connectDB() {
     return cached.conn;
   }
 
-  const mongoUri = process.env.MONGODB_URI;
+  let mongoUri = process.env.MONGODB_URI;
   if (!mongoUri) {
     console.warn("Warning: MONGODB_URI is not defined in environment variables");
     return null;
+  }
+  if (mongoUri.includes("localhost")) {
+    mongoUri = mongoUri.replace("localhost", "127.0.0.1");
   }
 
   if (!cached.promise) {

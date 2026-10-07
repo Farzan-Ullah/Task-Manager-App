@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { User, Mail, Lock, Eye, EyeOff, Users, ArrowRight } from "lucide-react";
 import api from "../utils/api";
@@ -7,16 +7,25 @@ import Cookies from "js-cookie";
 import { useApp } from "../context/AppContext";
 
 const Settings = () => {
-  const user = JSON.parse(sessionStorage.getItem("user") || "{}");
-  const { currentWorkspace, workspaceMembers } = useApp();
+  const { user, setUser, currentWorkspace, workspaceMembers } = useApp();
   const [formData, setFormData] = useState({
-    name: user.name || "",
-    email: user.email || "",
+    name: user?.name || "",
+    email: user?.email || "",
     currentPassword: "",
     newPassword: "",
   });
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+      }));
+    }
+  }, [user?.name, user?.email]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,15 +34,29 @@ const Settings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await api.put(`/user/update/${user.userId}`, formData);
+      const targetUserId = user?.userId || user?._id;
+      const res = await api.put(`/user/update/${targetUserId}`, formData);
       if (res.data.success) {
         toast.success("Profile updated successfully");
-        const updatedUser = { ...user, name: res.data.name, email: res.data.email };
+        const updatedUser = {
+          ...user,
+          name: res.data.name,
+          email: res.data.email,
+          userId: res.data.userId || user?.userId || user?._id,
+          _id: res.data.userId || user?._id,
+        };
+        setUser(updatedUser);
         sessionStorage.setItem("user", JSON.stringify(updatedUser));
+        if (localStorage.getItem("token")) {
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+        }
         if (res.data.token) {
           sessionStorage.setItem("token", res.data.token);
+          if (localStorage.getItem("token")) {
+            localStorage.setItem("token", res.data.token);
+          }
         }
-        setFormData({ ...formData, currentPassword: "", newPassword: "" });
+        setFormData((prev) => ({ ...prev, currentPassword: "", newPassword: "" }));
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update profile");

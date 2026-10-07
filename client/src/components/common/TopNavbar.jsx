@@ -28,6 +28,9 @@ const TopNavbar = ({ onToggleSidebar }) => {
   const handleLogout = async () => {
     try {
       await api.post("/user/logout");
+    } catch {
+      // Continue client cleanup even if network request fails
+    } finally {
       sessionStorage.clear();
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -38,8 +41,6 @@ const TopNavbar = ({ onToggleSidebar }) => {
       setUser(null);
       toast.success("Logged out successfully");
       navigate("/login");
-    } catch {
-      toast.error("Logout failed");
     }
   };
 
@@ -113,15 +114,15 @@ const TopNavbar = ({ onToggleSidebar }) => {
             className="flex items-center space-x-2 p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
           >
             <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-              {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+              {user?.name ? user.name.charAt(0).toUpperCase() : user?.email ? user.email.charAt(0).toUpperCase() : "U"}
             </div>
           </button>
 
           {isUserMenuOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 z-50 py-1.5 animate-in fade-in zoom-in-95 duration-100">
               <div className="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800">
-                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user?.name}</p>
-                <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate">{user?.email}</p>
+                <p className="text-xs font-bold text-gray-900 dark:text-white truncate">{user?.name || "User"}</p>
+                <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate">{user?.email || ""}</p>
                 <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
                   isGuest
                     ? "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800"

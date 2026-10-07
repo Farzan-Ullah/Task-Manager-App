@@ -230,9 +230,49 @@ const logOutUser = async (req, res) => {
   }
 };
 
+const getMe = async (req, res) => {
+  try {
+    const userId = req.user.userId || req.user._id || req.user.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Invalid token payload",
+      });
+    }
+
+    const user = await User.findById(userId).select("name email role avatar workspace workspaces");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        userId: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar || "",
+        workspaceId: user.workspace,
+        workspaces: user.workspaces || [],
+      },
+    });
+  } catch (error) {
+    console.error("getMe controller error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error fetching user profile",
+    });
+  }
+};
+
 const updateUserProfile = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.userId || req.user._id || req.params.userId;
     console.log("Updating user profile for userId:", userId);
     const { name, email, currentPassword, newPassword } = req.body;
     const user = await User.findById(userId);
@@ -265,9 +305,16 @@ const updateUserProfile = async (req, res) => {
     }
 
     await user.save();
+    const secret = process.env.SECRET_KEY || "default_pro_manage_fallback_secret_key_2026";
     const token = jwt.sign(
-      { email: user.email, _id: user._id },
-      process.env.SECRET_KEY,
+      {
+        userId: user._id,
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+        workspaceId: user.workspace,
+      },
+      secret,
       { expiresIn: "60h" }
     );
     res.cookie("token", token, {
@@ -280,6 +327,10 @@ const updateUserProfile = async (req, res) => {
       message: "Profile updated successfully",
       name: user.name,
       email: user.email,
+      userId: user._id,
+      _id: user._id,
+      role: user.role,
+      workspaceId: user.workspace,
       token: token,
     });
   } catch (error) {
@@ -497,6 +548,7 @@ module.exports = {
   registerUser,
   loginUser,
   logOutUser,
+  getMe,
   updateUserProfile,
   addAssigneeByEmail,
   getAllAssignees,

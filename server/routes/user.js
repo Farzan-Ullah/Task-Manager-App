@@ -6,6 +6,7 @@ const { verifyToken } = require("../middlewares/TokenVerification");
 router.post("/register", userController.registerUser);
 router.post("/login", userController.loginUser);
 router.post("/logout", userController.logOutUser);
+router.get("/me", verifyToken, userController.getMe);
 router.post("/forgot-password", userController.forgotPassword);
 router.get("/verify-reset-token/:token", userController.verifyResetToken);
 router.post("/reset-password/:token", userController.resetPassword);

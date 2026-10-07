@@ -13,9 +13,15 @@ const DashboardLayout = () => {
   const { user, isGuest } = useApp();
 
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
+    const sessionToken = sessionStorage.getItem("token");
+    const localToken = localStorage.getItem("token");
+    const token = sessionToken || localToken;
     if (!token) {
       navigate("/login");
+    } else if (!sessionToken && localToken) {
+      sessionStorage.setItem("token", localToken);
+      const localUser = localStorage.getItem("user");
+      if (localUser) sessionStorage.setItem("user", localUser);
     }
   }, [navigate]);
 

@@ -5,9 +5,12 @@ import api from "../utils/api";
 import Cookies from "js-cookie";
 import { Mail, Lock, Shield, ArrowRight } from "lucide-react";
 import ThemeToggle from "../components/common/ThemeToggle";
+import { useApp } from "../context/AppContext";
+import { reconnectSocket } from "../utils/socket";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { setUser, fetchWorkspaces, fetchNotifications, fetchCurrentUser } = useApp();
   const rememberedEmail = localStorage.getItem("promanage_remember_email") || "";
   const [formData, setFormData] = useState({
     email: rememberedEmail,
@@ -30,7 +33,9 @@ const Login = () => {
           name: res.data.name,
           email: res.data.email,
           userId: res.data.userId,
+          _id: res.data.userId,
           role: res.data.role || "Employee",
+          workspaceId: res.data.workspaceId,
         };
 
         if (rememberMe) {
@@ -46,7 +51,19 @@ const Login = () => {
         sessionStorage.setItem("token", res.data.token);
         sessionStorage.setItem("user", JSON.stringify(userData));
 
-        toast.success("Welcome back!");
+        // Immediately sync AppContext React state
+        setUser(userData);
+        reconnectSocket(res.data.token);
+
+        try {
+          await Promise.allSettled([
+            fetchCurrentUser ? fetchCurrentUser() : Promise.resolve(),
+            fetchWorkspaces(),
+            fetchNotifications(),
+          ]);
+        } catch {}
+
+        toast.success(`Welcome back, ${userData.name}!`);
         navigate("/dash/board");
       }
     } catch (error) {

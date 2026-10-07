@@ -8,10 +8,17 @@ const AppContext = createContext(null);
 export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
-      return (
-        JSON.parse(sessionStorage.getItem("user") || "null") ||
-        JSON.parse(localStorage.getItem("user") || "null")
-      );
+      const sessionToken = sessionStorage.getItem("token");
+      const localToken = localStorage.getItem("token");
+
+      if (sessionToken) {
+        const sessionUser = sessionStorage.getItem("user");
+        if (sessionUser) return JSON.parse(sessionUser);
+      } else if (localToken) {
+        const localUser = localStorage.getItem("user");
+        if (localUser) return JSON.parse(localUser);
+      }
+      return null;
     } catch {
       return null;
     }
@@ -233,14 +240,57 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Fetch latest authenticated user profile directly from server
+  const fetchCurrentUser = useCallback(async () => {
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    if (!token) {
+      setUser(null);
+      return null;
+    }
+
+    try {
+      const res = await api.get("/user/me");
+      if (res.data?.success && res.data?.user) {
+        const freshUser = res.data.user;
+        setUser(freshUser);
+        sessionStorage.setItem("user", JSON.stringify(freshUser));
+        if (localStorage.getItem("token")) {
+          localStorage.setItem("user", JSON.stringify(freshUser));
+        }
+        return freshUser;
+      }
+    } catch (err) {
+      console.warn("User profile refresh:", err.response?.data?.message || err.message);
+      if (err.response?.status === 401) {
+        setUser(null);
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+    }
+    return null;
+  }, []);
+
   // Initial Load
   useEffect(() => {
-    const token = sessionStorage.getItem("token") || localStorage.getItem("token");
+    const sessionToken = sessionStorage.getItem("token");
+    const localToken = localStorage.getItem("token");
+
+    // Rehydrate sessionStorage if user has rememberMe token in localStorage
+    if (!sessionToken && localToken) {
+      sessionStorage.setItem("token", localToken);
+      const localUser = localStorage.getItem("user");
+      if (localUser) sessionStorage.setItem("user", localUser);
+    }
+
+    const token = sessionToken || localToken;
     if (token) {
+      fetchCurrentUser();
       fetchWorkspaces();
       fetchNotifications();
     }
-  }, [fetchWorkspaces, fetchNotifications]);
+  }, [fetchCurrentUser, fetchWorkspaces, fetchNotifications]);
 
   // When workspace changes, fetch its projects and members
   useEffect(() => {
@@ -354,6 +404,7 @@ export const AppProvider = ({ children }) => {
       value={{
         user,
         setUser,
+        fetchCurrentUser,
         workspaces,
         currentWorkspace,
         workspaceMembers,

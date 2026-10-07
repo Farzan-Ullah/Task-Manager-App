@@ -12,7 +12,8 @@ const SOCKET_URL = import.meta.env.PROD
  */
 export function getSocket() {
   if (!socket) {
-    const token = sessionStorage.getItem("token");
+    const token =
+      sessionStorage.getItem("token") || localStorage.getItem("token");
     socket = io(SOCKET_URL, {
       auth: { token },
       transports: ["websocket", "polling"],
