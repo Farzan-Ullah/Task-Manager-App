@@ -9,14 +9,15 @@ let io = null;
  * @returns {Server}
  */
 function initSocket(httpServer) {
-  io = new Server(httpServer, {
-    cors: {
-      origin: "*", // Allows Vite client dev server and production clients
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-      credentials: true,
-    },
-    transports: ["websocket", "polling"],
-  });
+  try {
+    io = new Server(httpServer, {
+      cors: {
+        origin: "*", // Allows Vite client dev server and production clients
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        credentials: true,
+      },
+      transports: ["websocket", "polling"],
+    });
 
   // Authentication middleware for socket connections
   io.use((socket, next) => {
@@ -109,6 +110,9 @@ function initSocket(httpServer) {
       console.log(`Socket disconnected: ${socket.id} (Reason: ${reason})`);
     });
   });
+  } catch (err) {
+    console.warn("Socket.io initialization warning (safe in serverless):", err.message);
+  }
 
   return io;
 }

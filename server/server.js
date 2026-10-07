@@ -15,7 +15,7 @@ const { verifyToken } = require("./middlewares/TokenVerification");
 const errorHandler = require("./middlewares/errorHandler");
 const ShareTodo = require("./controllers/todos/TodoShare");
 const { initSocket } = require("./sockets");
-require("./config/db");
+const { connectDB } = require("./config/db");
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +28,22 @@ app.server = server;
 app.use(express.json());
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
+
+// Database connection middleware for serverless cold-starts & connection reuse
+app.use(async (req, res, next) => {
+  try {
+    if (connectDB) {
+      await connectDB();
+    }
+    next();
+  } catch (err) {
+    console.error("Database connection middleware error:", err.message);
+    return res.status(500).json({
+      errorMessage: "Database connection failed. Please ensure MONGODB_URI is set in Vercel environment variables and MongoDB Atlas IP access allows 0.0.0.0/0.",
+      details: err.message,
+    });
+  }
+});
 
 // Serve static uploaded files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));

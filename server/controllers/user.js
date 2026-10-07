@@ -5,7 +5,12 @@ const Board = require("../models/board");
 const Counter = require("../models/counter");
 const notificationService = require("../services/notificationService");
 const socketService = require("../services/socketService");
-const bcrypt = require("bcrypt");
+let bcrypt;
+try {
+  bcrypt = require("bcryptjs");
+} catch (e) {
+  bcrypt = require("bcrypt");
+}
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
@@ -176,6 +181,7 @@ const loginUser = async (req, res) => {
         .json({ errorMessage: "Incorrect password or email!" });
     }
 
+    const secret = process.env.SECRET_KEY || "default_pro_manage_fallback_secret_key_2026";
     const token = jwt.sign(
       {
         userId: userData._id,
@@ -183,7 +189,7 @@ const loginUser = async (req, res) => {
         role: userData.role,
         workspaceId: userData.workspace,
       },
-      process.env.SECRET_KEY,
+      secret,
       { expiresIn: "60h" }
     );
 
@@ -204,9 +210,9 @@ const loginUser = async (req, res) => {
       workspaceId: userData.workspace,
     });
   } catch (error) {
-    console.log(error);
+    console.error("Login controller error:", error);
     res.status(500).json({
-      errorMessage: "Something went wrong",
+      errorMessage: error.message || "Something went wrong during login",
     });
   }
 };
